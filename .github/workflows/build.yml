@@ -1,0 +1,81 @@
+name: Build FlowBoard Pro for Windows
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: Bundle XLSX library
+        shell: pwsh
+        run: |
+          if (Test-Path "node_modules/xlsx/dist/xlsx.full.min.js") {
+            Copy-Item "node_modules/xlsx/dist/xlsx.full.min.js" "src/xlsx.full.min.js" -Force
+          }
+
+      - name: Build Windows installers
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload Setup installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlowBoard-Pro-Setup-${{ github.run_number }}
+          path: dist/*Setup*.exe
+          retention-days: 30
+
+      - name: Upload Portable exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlowBoard-Pro-Portable-${{ github.run_number }}
+          path: dist/*Portable*.exe
+          retention-days: 30
+```
+
+Click **"Commit new file"** ✅
+
+---
+
+## Done! Now watch it build
+
+1. Click **"Actions"** tab in your repo
+2. See **"Build FlowBoard Pro for Windows"** running 🟡
+3. Wait **~8 minutes**
+4. Green ✅ → click the run → scroll to bottom → **Artifacts**
+5. Download **`FlowBoard-Pro-Setup`** → extract → run the `.exe` on Windows 11 ✅
+
+---
+
+## Your repo should look like this when done:
+```
+flowboard-pro/
+├── .github/
+│   └── workflows/
+│       └── build.yml
+├── src/
+│   └── index.html
+├── main.js
+├── preload.js
+├── package.json
+└── .gitignore
