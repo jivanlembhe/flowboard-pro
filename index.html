@@ -1,0 +1,2263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FlowBoard Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════════════════ */
+/* ── DARK THEME (default) ── */
+:root{
+  --bg:#07080d;
+  --s1:#0e1018;
+  --s2:#13161f;
+  --s3:#191d29;
+  --s4:#1f2333;
+  --border:#252a3a;
+  --border2:#2e3448;
+
+  --indigo:#6c8aff;
+  --indigo-dim:rgba(108,138,255,.12);
+  --amber:#ffb347;
+  --amber-dim:rgba(255,179,71,.12);
+  --violet:#b48aff;
+  --violet-dim:rgba(180,138,255,.12);
+  --mint:#3ddbbf;
+  --mint-dim:rgba(61,219,191,.12);
+  --rose:#ff6584;
+  --rose-dim:rgba(255,101,132,.12);
+
+  --text:#eef0f8;
+  --text2:#9aa0bc;
+  --text3:#5c6382;
+
+  --r:14px;
+  --r2:10px;
+  --shadow:0 12px 40px rgba(0,0,0,.5);
+  --glow-i:0 0 24px rgba(108,138,255,.25);
+}
+
+/* ── LIGHT THEME ── */
+:root.light{
+  --bg:#f0f2f9;
+  --s1:#ffffff;
+  --s2:#ffffff;
+  --s3:#f4f5fb;
+  --s4:#eaecf5;
+  --border:#d8dbee;
+  --border2:#c4c8e0;
+
+  --indigo:#4a6bef;
+  --indigo-dim:rgba(74,107,239,.1);
+  --amber:#c97a00;
+  --amber-dim:rgba(201,122,0,.1);
+  --violet:#7c5bbf;
+  --violet-dim:rgba(124,91,191,.1);
+  --mint:#0d9e80;
+  --mint-dim:rgba(13,158,128,.1);
+  --rose:#d63058;
+  --rose-dim:rgba(214,48,88,.1);
+
+  --text:#1a1d2e;
+  --text2:#4a5070;
+  --text3:#8890b0;
+
+  --shadow:0 4px 24px rgba(0,0,0,.1);
+  --glow-i:0 0 20px rgba(74,107,239,.2);
+}
+
+/* ── THEME TRANSITION ── */
+*, *::before, *::after {
+  transition: background-color .25s ease, border-color .25s ease, color .2s ease !important;
+}
+/* Don't animate layout-affecting props */
+.card, .modal, .exp-panel { transition: background-color .25s ease, border-color .25s ease, color .2s ease, transform .15s ease, box-shadow .15s ease !important; }
+
+/* ── LIGHT OVERRIDES ── */
+:root.light body::before{
+  background:
+    radial-gradient(ellipse 60% 40% at 10% 10%,rgba(74,107,239,.06) 0%,transparent 70%),
+    radial-gradient(ellipse 50% 50% at 90% 80%,rgba(13,158,128,.05) 0%,transparent 70%);
+}
+:root.light .sidebar{ box-shadow: 2px 0 12px rgba(0,0,0,.06); }
+:root.light .card:hover{ box-shadow:0 4px 20px rgba(0,0,0,.12); }
+:root.light .kpi{ box-shadow:0 2px 12px rgba(0,0,0,.06); }
+:root.light .panel{ box-shadow:0 2px 12px rgba(0,0,0,.06); }
+:root.light .tl-item{ background:var(--s3); }
+:root.light .topbar{ box-shadow:0 1px 8px rgba(0,0,0,.06); }
+:root.light .fg input, :root.light .fg textarea, :root.light .fg select{ background:var(--s3); }
+:root.light .add-task-inp{ background:var(--s3); }
+:root.light .cl-search{ background:var(--s3); }
+:root.light .sub-inp{ background:var(--s4); }
+:root.light .bar-fill{ opacity:1; }
+:root.light .exp-panel{ box-shadow:0 8px 40px rgba(0,0,0,.15); }
+:root.light .toast{ box-shadow:0 4px 20px rgba(0,0,0,.12); }
+:root.light .m-btn.active{ box-shadow:0 0 10px rgba(74,107,239,.3); }
+
+/* ── THEME TOGGLE BUTTON ── */
+.theme-toggle{
+  width:36px;height:36px;border-radius:50%;
+  border:1.5px solid var(--border);
+  background:var(--s3);
+  color:var(--text2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;transition:all .2s;
+  flex-shrink:0;
+}
+.theme-toggle:hover{
+  border-color:var(--indigo);
+  color:var(--indigo);
+  background:var(--indigo-dim);
+  transform:rotate(20deg);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  font-family:'Cabinet Grotesk',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* subtle mesh bg */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 10% 10%,rgba(108,138,255,.05) 0%,transparent 70%),
+    radial-gradient(ellipse 50% 50% at 90% 80%,rgba(61,219,191,.04) 0%,transparent 70%);
+  pointer-events:none;
+  z-index:0;
+}
+
+/* ═══════════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════════ */
+.app{display:flex;min-height:100vh;position:relative;z-index:1}
+
+.sidebar{
+  width:220px;flex-shrink:0;
+  background:var(--s1);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  padding:24px 0;
+  position:sticky;top:0;height:100vh;
+  overflow-y:auto;
+}
+
+.brand{
+  padding:0 20px 24px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:16px;
+}
+.brand-name{
+  font-family:'Playfair Display',serif;
+  font-weight:800;font-size:1.35rem;
+  background:linear-gradient(135deg,var(--indigo),var(--violet));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:-.3px;
+}
+.brand-sub{font-size:.68rem;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+
+.nav-section-label{
+  font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text3);padding:8px 20px 4px;
+}
+
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 20px;cursor:pointer;
+  font-size:.85rem;font-weight:500;color:var(--text2);
+  border-left:3px solid transparent;
+  transition:all .2s;
+}
+.nav-item:hover{color:var(--text);background:var(--s2)}
+.nav-item.active{
+  color:var(--indigo);
+  background:var(--indigo-dim);
+  border-left-color:var(--indigo);
+}
+.nav-item .nav-icon{font-size:1rem;width:20px;text-align:center}
+.nav-badge{
+  margin-left:auto;font-size:.65rem;font-weight:700;
+  background:var(--indigo);color:#fff;
+  padding:1px 6px;border-radius:10px;min-width:18px;text-align:center;
+}
+
+.sidebar-footer{
+  margin-top:auto;padding:16px 20px 0;
+  border-top:1px solid var(--border);
+}
+.month-label{font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.month-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.m-btn{
+  font-size:.68rem;font-weight:700;padding:5px 2px;
+  border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--text3);cursor:pointer;text-align:center;
+  transition:all .18s;
+}
+.m-btn:hover{border-color:var(--indigo);color:var(--indigo)}
+.m-btn.active{background:var(--indigo);border-color:var(--indigo);color:#fff;box-shadow:var(--glow-i)}
+
+/* ═══════════════════════════════════════════════════
+   MAIN
+═══════════════════════════════════════════════════ */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 28px;
+  background:var(--s1);
+  border-bottom:1px solid var(--border);
+  gap:16px;
+}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.page-title{
+  font-family:'Playfair Display',serif;
+  font-size:1.2rem;font-weight:700;
+  color:var(--text);
+}
+.page-month{
+  font-size:.75rem;color:var(--indigo);
+  background:var(--indigo-dim);
+  padding:3px 10px;border-radius:20px;font-weight:600;
+}
+.topbar-right{display:flex;gap:8px;align-items:center}
+
+/* ═══════════════════════════════════════════════════
+   PAGES
+═══════════════════════════════════════════════════ */
+.page{display:none;flex:1;overflow:auto;padding:24px 28px}
+.page.active{display:flex;flex-direction:column;gap:20px}
+
+/* ═══════════════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════════════ */
+.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+.kpi{
+  background:var(--s2);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:20px;
+  position:relative;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;
+}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.kpi::after{
+  content:'';position:absolute;
+  top:-30px;right:-30px;
+  width:80px;height:80px;
+  border-radius:50%;
+  opacity:.08;
+}
+.kpi.blue::after{background:var(--indigo)}
+.kpi.amber::after{background:var(--amber)}
+.kpi.violet::after{background:var(--violet)}
+.kpi.mint::after{background:var(--mint)}
+
+.kpi-label{font-size:.72rem;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.kpi-val{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;line-height:1}
+.kpi-sub{font-size:.72rem;color:var(--text3);margin-top:6px}
+.kpi-icon{position:absolute;bottom:14px;right:16px;font-size:1.5rem;opacity:.35}
+.kpi-bar{height:3px;border-radius:2px;margin-top:12px;background:var(--border)}
+.kpi-bar-fill{height:100%;border-radius:2px;transition:width .8s ease}
+
+.dash-row{display:grid;grid-template-columns:1.5fr 1fr;gap:14px}
+
+.panel{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--r);padding:20px;
+}
+.panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.panel-title{
+  font-family:'Playfair Display',serif;
+  font-size:.95rem;font-weight:700;
+}
+
+/* Activity Timeline */
+.timeline{display:flex;flex-direction:column;gap:10px}
+.tl-item{
+  display:flex;gap:12px;align-items:flex-start;
+  padding:10px 12px;
+  border-radius:var(--r2);
+  background:var(--s3);
+  border:1px solid var(--border);
+  transition:background .2s;
+}
+.tl-item:hover{background:var(--s4)}
+.tl-dot{
+  width:28px;height:28px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;flex-shrink:0;
+}
+.tl-body{flex:1}
+.tl-title{font-size:.82rem;font-weight:500;line-height:1.3}
+.tl-meta{font-size:.7rem;color:var(--text3);margin-top:2px}
+
+/* Progress rings */
+.ring-wrap{display:flex;flex-direction:column;align-items:center;gap:16px}
+.ring-row{display:flex;gap:20px;justify-content:center}
+.ring-item{display:flex;flex-direction:column;align-items:center;gap:6px}
+.ring-label{font-size:.72rem;color:var(--text2);text-align:center}
+.ring-val{font-size:.78rem;font-weight:700;color:var(--text)}
+
+svg.ring{transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:var(--border);stroke-width:5}
+.ring-fg{fill:none;stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .9s ease}
+
+/* Monthly bar chart */
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:80px;padding-top:8px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bar-fill{
+  width:100%;border-radius:4px 4px 0 0;
+  min-height:4px;transition:height .6s ease;
+  background:linear-gradient(to top,var(--indigo),var(--violet));
+  opacity:.8;
+}
+.bar-fill:hover{opacity:1}
+.bar-mlabel{font-size:.55rem;color:var(--text3)}
+
+/* ═══════════════════════════════════════════════════
+   KANBAN
+═══════════════════════════════════════════════════ */
+#page-kanban.active{flex-direction:row;gap:16px;overflow-x:auto;align-items:flex-start;padding-bottom:32px}
+
+.k-col{flex:0 0 272px;display:flex;flex-direction:column;gap:10px}
+
+.k-col-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;
+  border-radius:var(--r);
+  background:var(--s2);
+  border:1px solid var(--border);
+}
+.k-col-title{
+  display:flex;align-items:center;gap:8px;
+  font-family:'Playfair Display',serif;
+  font-size:.88rem;font-weight:700;
+}
+.k-col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.k-count{
+  font-size:.7rem;font-weight:700;
+  padding:2px 8px;border-radius:20px;
+  background:var(--s3);color:var(--text2);
+}
+
+.k-cards{
+  display:flex;flex-direction:column;gap:8px;
+  min-height:60px;border-radius:var(--r);padding:2px;
+  transition:background .2s;
+}
+.k-cards.over{
+  background:rgba(108,138,255,.06);
+  outline:2px dashed rgba(108,138,255,.4);outline-offset:-2px;
+}
+
+.card{
+  background:var(--s2);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:13px 14px;
+  cursor:grab;
+  transition:transform .15s,box-shadow .15s,border-color .2s;
+  position:relative;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;
+  left:0;top:0;bottom:0;width:3px;
+  background:var(--col-c,var(--indigo));
+  border-radius:3px 0 0 3px;
+}
+.card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--border2)}
+.card.dragging{opacity:.35;transform:rotate(2deg);cursor:grabbing}
+
+.card-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+.card-check{
+  width:17px;height:17px;border-radius:5px;
+  border:2px solid var(--border2);background:transparent;
+  cursor:pointer;flex-shrink:0;margin-top:2px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.card-check.on{background:var(--mint);border-color:var(--mint)}
+.card-check.on::after{content:'✓';font-size:10px;color:#fff;font-weight:800}
+.card-title{font-size:.83rem;font-weight:500;flex:1;line-height:1.4;word-break:break-word}
+.card-title.done{text-decoration:line-through;color:var(--text3)}
+.card-del{
+  width:20px;height:20px;border-radius:50%;
+  border:none;background:transparent;color:var(--text3);
+  cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;opacity:0;transition:all .15s;
+}
+.card:hover .card-del{opacity:1}
+.card-del:hover{background:var(--rose);color:#fff}
+
+.card-meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.badge{font-size:.63rem;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.2px}
+.b-high{background:rgba(255,101,132,.15);color:var(--rose)}
+.b-med{background:rgba(255,179,71,.15);color:var(--amber)}
+.b-low{background:rgba(61,219,191,.15);color:var(--mint)}
+.b-date{background:var(--s3);color:var(--text3)}
+
+.card-desc{
+  font-size:.74rem;color:var(--text2);line-height:1.5;
+  margin-top:8px;padding-top:8px;
+  border-top:1px solid var(--border);
+}
+
+/* Subtask checklist on card */
+.card-checklist{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.cl-progress{
+  display:flex;align-items:center;gap:8px;margin-bottom:6px;
+}
+.cl-bar{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.cl-bar-fill{height:100%;background:var(--mint);border-radius:2px;transition:width .4s}
+.cl-pct{font-size:.65rem;color:var(--text3);white-space:nowrap}
+
+.cl-item{
+  display:flex;align-items:center;gap:7px;
+  padding:3px 0;font-size:.75rem;color:var(--text2);
+}
+.cl-cb{
+  width:13px;height:13px;border-radius:3px;
+  border:1.5px solid var(--border2);background:transparent;
+  cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.cl-cb.on{background:var(--mint);border-color:var(--mint)}
+.cl-cb.on::after{content:'✓';font-size:8px;color:#fff;font-weight:800}
+.cl-text.done{text-decoration:line-through;color:var(--text3)}
+
+.add-k-btn{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 12px;border-radius:var(--r);
+  border:1.5px dashed var(--border);background:transparent;
+  color:var(--text3);font-family:'Cabinet Grotesk',sans-serif;
+  font-size:.8rem;cursor:pointer;width:100%;transition:all .2s;
+}
+.add-k-btn:hover{border-color:var(--indigo);color:var(--indigo);background:var(--indigo-dim)}
+
+/* empty */
+.k-empty{
+  text-align:center;padding:24px 12px;
+  color:var(--text3);font-size:.78rem;
+  border-radius:var(--r);border:1.5px dashed var(--border);
+}
+.k-empty span{display:block;font-size:1.5rem;margin-bottom:6px;opacity:.4}
+
+/* ═══════════════════════════════════════════════════
+   CHECKLIST PAGE
+═══════════════════════════════════════════════════ */
+.cl-page{display:flex;flex-direction:column;gap:16px}
+
+.cl-toolbar{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+}
+.cl-filter-btn{
+  font-size:.75rem;font-weight:600;padding:6px 14px;
+  border-radius:20px;border:1.5px solid var(--border);
+  background:transparent;color:var(--text2);cursor:pointer;transition:all .2s;
+}
+.cl-filter-btn:hover{border-color:var(--indigo);color:var(--indigo)}
+.cl-filter-btn.active{background:var(--indigo);border-color:var(--indigo);color:#fff}
+.cl-search{
+  flex:1;max-width:280px;padding:7px 14px;
+  border-radius:20px;border:1.5px solid var(--border);
+  background:var(--s2);color:var(--text);
+  font-family:'Cabinet Grotesk',sans-serif;font-size:.82rem;outline:none;
+}
+.cl-search:focus{border-color:var(--indigo)}
+
+.cl-group{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;
+}
+.cl-group-header{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 18px;cursor:pointer;
+  background:var(--s2);
+  transition:background .2s;
+}
+.cl-group-header:hover{background:var(--s3)}
+.cl-group-title{
+  font-family:'Playfair Display',serif;
+  font-size:.92rem;font-weight:700;flex:1;
+}
+.cl-group-prog{
+  display:flex;align-items:center;gap:8px;
+  font-size:.72rem;color:var(--text3);
+}
+.cl-group-pbar{width:60px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.cl-group-pfill{height:100%;border-radius:2px;transition:width .4s}
+.cl-group-arrow{font-size:.8rem;color:var(--text3);transition:transform .25s}
+.cl-group.collapsed .cl-group-arrow{transform:rotate(-90deg)}
+
+.cl-group-body{padding:0 18px 14px}
+.cl-task-item{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:10px 0;
+  border-bottom:1px solid var(--border);
+}
+.cl-task-item:last-child{border-bottom:none}
+.cl-big-cb{
+  width:19px;height:19px;border-radius:6px;
+  border:2px solid var(--border2);background:transparent;
+  cursor:pointer;flex-shrink:0;margin-top:1px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.cl-big-cb.on{background:var(--mint);border-color:var(--mint)}
+.cl-big-cb.on::after{content:'✓';font-size:11px;color:#fff;font-weight:800}
+.cl-task-body{flex:1}
+.cl-task-title{font-size:.85rem;font-weight:500}
+.cl-task-title.done{text-decoration:line-through;color:var(--text3)}
+.cl-task-meta{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+.cl-task-sub{
+  display:flex;flex-direction:column;gap:4px;
+  margin-top:8px;padding-left:8px;
+  border-left:2px solid var(--border);
+}
+.cl-sub-item{
+  display:flex;align-items:center;gap:8px;
+  font-size:.76rem;color:var(--text2);
+}
+.cl-sub-cb{
+  width:13px;height:13px;border-radius:3px;
+  border:1.5px solid var(--border2);background:transparent;
+  cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;
+}
+.cl-sub-cb.on{background:var(--violet);border-color:var(--violet)}
+.cl-sub-cb.on::after{content:'✓';font-size:8px;color:#fff;font-weight:800}
+.cl-sub-text.done{text-decoration:line-through;color:var(--text3)}
+.cl-task-del{
+  padding:4px;border:none;background:transparent;
+  color:var(--text3);cursor:pointer;font-size:.8rem;
+  border-radius:4px;transition:all .15s;opacity:0;flex-shrink:0;
+}
+.cl-task-item:hover .cl-task-del{opacity:1}
+.cl-task-del:hover{background:var(--rose-dim);color:var(--rose)}
+
+.add-task-row{
+  display:flex;gap:8px;padding:12px 0 0;
+}
+.add-task-inp{
+  flex:1;padding:8px 12px;
+  border-radius:var(--r2);border:1.5px solid var(--border);
+  background:var(--s3);color:var(--text);
+  font-family:'Cabinet Grotesk',sans-serif;font-size:.82rem;outline:none;
+}
+.add-task-inp:focus{border-color:var(--indigo)}
+.add-task-inp::placeholder{color:var(--text3)}
+
+/* ═══════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════ */
+.btn{
+  font-family:'Cabinet Grotesk',sans-serif;
+  font-weight:700;font-size:.78rem;
+  padding:8px 18px;border-radius:30px;
+  border:none;cursor:pointer;transition:all .2s;
+  letter-spacing:.2px;display:inline-flex;align-items:center;gap:6px;
+}
+.btn-p{background:var(--indigo);color:#fff;box-shadow:0 4px 16px rgba(108,138,255,.3)}
+.btn-p:hover{background:#5a79f5;transform:translateY(-1px)}
+.btn-g{background:transparent;color:var(--text2);border:1.5px solid var(--border)}
+.btn-g:hover{color:var(--text);border-color:var(--text2)}
+.btn-ex{background:var(--mint-dim);color:var(--mint);border:1.5px solid rgba(61,219,191,.3)}
+.btn-ex:hover{background:rgba(61,219,191,.2);transform:translateY(-1px)}
+.btn-sm{padding:5px 12px;font-size:.72rem}
+
+/* ═══════════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════════ */
+.overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.75);z-index:300;
+  backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;
+}
+.overlay.open{display:flex}
+.modal{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:20px;padding:28px;
+  width:460px;max-width:95vw;
+  box-shadow:0 28px 80px rgba(0,0,0,.7);
+  animation:slideUp .22s ease;
+}
+@keyframes slideUp{
+  from{transform:translateY(18px);opacity:0}
+  to{transform:translateY(0);opacity:1}
+}
+.modal h2{
+  font-family:'Playfair Display',serif;
+  font-size:1.1rem;font-weight:700;margin-bottom:20px;
+}
+.fg{margin-bottom:13px}
+.fg label{display:block;font-size:.7rem;font-weight:600;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+.fg input,.fg textarea,.fg select{
+  width:100%;background:var(--s3);border:1.5px solid var(--border);
+  border-radius:var(--r2);padding:9px 12px;
+  color:var(--text);font-family:'Cabinet Grotesk',sans-serif;
+  font-size:.85rem;outline:none;transition:border .2s;resize:vertical;
+}
+.fg input:focus,.fg textarea:focus,.fg select:focus{border-color:var(--indigo)}
+.fg select option{background:var(--s2)}
+
+/* subtask builder in modal */
+.sub-builder{
+  background:var(--s3);border-radius:var(--r2);
+  border:1.5px solid var(--border);padding:10px;
+}
+.sub-list{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}
+.sub-row{
+  display:flex;align-items:center;gap:7px;
+  font-size:.78rem;color:var(--text2);
+  padding:4px 6px;border-radius:5px;background:var(--s4);
+}
+.sub-row span{flex:1}
+.sub-row button{
+  border:none;background:transparent;color:var(--text3);
+  cursor:pointer;font-size:.75rem;transition:color .15s;
+}
+.sub-row button:hover{color:var(--rose)}
+.sub-add-row{display:flex;gap:6px}
+.sub-inp{
+  flex:1;padding:6px 10px;border-radius:6px;
+  border:1.5px solid var(--border);background:var(--s4);
+  color:var(--text);font-family:'Cabinet Grotesk',sans-serif;
+  font-size:.78rem;outline:none;
+}
+.sub-inp:focus{border-color:var(--indigo)}
+.modal-actions{display:flex;gap:8px;margin-top:20px}
+
+/* ═══════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════ */
+.toast{
+  position:fixed;bottom:24px;right:24px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:var(--r);padding:11px 18px;
+  font-size:.82rem;box-shadow:var(--shadow);z-index:999;
+  animation:fadeUp .25s ease;
+  display:flex;align-items:center;gap:9px;max-width:290px;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.toast.ok{border-color:var(--mint)}
+.toast .ti{font-size:1rem}
+
+/* ── EXPORT PANEL ── */
+.exp-panel{
+  display:none;position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:540px;max-width:95vw;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:20px;padding:26px;z-index:500;
+  box-shadow:0 28px 80px rgba(0,0,0,.75);
+  max-height:90vh;overflow-y:auto;
+}
+.exp-panel.open{display:block}
+.exp-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.6);z-index:499;
+  backdrop-filter:blur(4px);
+}
+.exp-overlay.open{display:block}
+
+.exp-month-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+  margin-top:8px;
+}
+.exp-m{
+  padding:8px 4px;border-radius:8px;
+  border:1.5px solid var(--border);background:transparent;
+  color:var(--text3);font-family:'Cabinet Grotesk',sans-serif;
+  font-size:.78rem;font-weight:700;cursor:pointer;
+  text-align:center;transition:all .18s;position:relative;
+}
+.exp-m:hover{border-color:var(--indigo);color:var(--indigo)}
+.exp-m.sel{background:var(--indigo);border-color:var(--indigo);color:#fff;box-shadow:0 0 12px rgba(108,138,255,.35)}
+.exp-m .exp-m-dot{
+  position:absolute;top:3px;right:4px;
+  width:5px;height:5px;border-radius:50%;
+  background:var(--amber);display:none;
+}
+.exp-m.has-data .exp-m-dot{display:block}
+
+.exp-section{margin:16px 0 0}
+.exp-section-title{
+  font-size:.7rem;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.8px;
+  margin-bottom:8px;
+}
+.exp-toggle-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 12px;border-radius:8px;
+  background:var(--s3);border:1px solid var(--border);
+  margin-bottom:6px;
+}
+.exp-toggle-row label{
+  font-size:.83rem;font-weight:500;cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+}
+.exp-toggle{
+  width:36px;height:20px;border-radius:10px;
+  border:none;cursor:pointer;
+  background:var(--border);position:relative;
+  transition:background .2s;flex-shrink:0;
+}
+.exp-toggle.on{background:var(--indigo)}
+.exp-toggle::after{
+  content:'';position:absolute;
+  width:14px;height:14px;border-radius:50%;
+  background:#fff;top:3px;left:3px;
+  transition:transform .2s;
+}
+.exp-toggle.on::after{transform:translateX(16px)}
+
+.exp-preview{
+  background:var(--s3);border:1px solid var(--border);
+  border-radius:8px;padding:12px 14px;
+  font-size:.76rem;color:var(--text2);line-height:1.7;
+  margin-top:12px;
+}
+.exp-preview strong{color:var(--text)}
+
+/* scrollbars */
+*{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+*::-webkit-scrollbar{width:5px;height:5px}
+*::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app">
+<!-- ── SIDEBAR ─────────────────────────── -->
+<nav class="sidebar">
+  <div class="brand">
+    <div class="brand-name">FlowBoard</div>
+    <div class="brand-sub">Pro Workspace</div>
+  </div>
+
+  <div class="nav-section-label">Workspace</div>
+  <div class="nav-item active" onclick="nav('dashboard',this)">
+    <span class="nav-icon">◈</span> Dashboard
+  </div>
+  <div class="nav-item" onclick="nav('kanban',this)">
+    <span class="nav-icon">⊞</span> Kanban Board
+    <span class="nav-badge" id="nb-kanban">0</span>
+  </div>
+  <div class="nav-item" onclick="nav('checklist',this)">
+    <span class="nav-icon">☑</span> Task Checklist
+    <span class="nav-badge" id="nb-checklist">0</span>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="month-label">Month</div>
+    <div class="month-grid" id="monthGrid"></div>
+  </div>
+</nav>
+
+<!-- ── MAIN ───────────────────────────── -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="page-title" id="pageTitle">Dashboard</div>
+      <div class="page-month" id="pageMonth">March 2026</div>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark/light theme">🌙</button>
+      <button class="btn btn-ex btn-sm" onclick="openExportPanel()">⬇ Export Excel</button>
+      <button class="btn btn-p btn-sm" id="addBtn" onclick="openAdd()">+ Add Task</button>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD PAGE ── -->
+  <div class="page active" id="page-dashboard">
+
+    <!-- KPIs -->
+    <div class="dash-grid" id="kpiGrid"></div>
+
+    <div class="dash-row">
+      <!-- Activity -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Recent Activity</div>
+        </div>
+        <div class="timeline" id="activityFeed"></div>
+      </div>
+      <!-- Rings -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Progress Overview</div>
+        </div>
+        <div id="ringArea"></div>
+        <div style="margin-top:18px">
+          <div class="panel-title" style="font-size:.82rem;margin-bottom:10px;color:var(--text2)">Tasks / Month</div>
+          <div class="bar-chart" id="barChart"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── KANBAN PAGE ── -->
+  <div class="page" id="page-kanban"></div>
+
+  <!-- ── CHECKLIST PAGE ── -->
+  <div class="page" id="page-checklist">
+    <div class="cl-toolbar">
+      <button class="cl-filter-btn active" onclick="clFilter('all',this)">All</button>
+      <button class="cl-filter-btn" onclick="clFilter('pending',this)">Pending</button>
+      <button class="cl-filter-btn" onclick="clFilter('done',this)">Done</button>
+      <input class="cl-search" type="text" placeholder="Search tasks…" oninput="clSearch(this.value)"/>
+      <button class="btn btn-p btn-sm" onclick="openAddCheckGroup()">+ New Group</button>
+    </div>
+    <div id="clList" class="cl-page"></div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ── EXPORT OVERLAY + PANEL ── -->
+<div class="exp-overlay" id="expOverlay" onclick="closeExportPanel()"></div>
+<div class="exp-panel" id="expPanel">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+    <div>
+      <div style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700">📊 Export to Excel</div>
+      <div style="font-size:.72rem;color:var(--text3);margin-top:3px">Choose months, content & format</div>
+    </div>
+    <button class="btn btn-g btn-sm" onclick="closeExportPanel()">✕</button>
+  </div>
+
+  <!-- Month selector -->
+  <div class="exp-section">
+    <div class="exp-section-title">Select Months to Export</div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+      <button class="btn btn-g btn-sm" onclick="expSelectAll()">Select All</button>
+      <button class="btn btn-g btn-sm" onclick="expSelectNone()">Clear</button>
+      <button class="btn btn-g btn-sm" onclick="expSelectCurrent()">Current Month</button>
+      <button class="btn btn-g btn-sm" onclick="expSelectWithData()">With Data Only</button>
+    </div>
+    <div class="exp-month-grid" id="expMonthGrid"></div>
+  </div>
+
+  <!-- What to include -->
+  <div class="exp-section">
+    <div class="exp-section-title">Include in Export</div>
+    <div class="exp-toggle-row">
+      <label for="tog-kanban">📋 Kanban Tasks (with sub-task checklist)</label>
+      <button class="exp-toggle on" id="tog-kanban" onclick="toggleExp(this)"></button>
+    </div>
+    <div class="exp-toggle-row">
+      <label for="tog-checklist">☑ Checklist Groups & Tasks</label>
+      <button class="exp-toggle on" id="tog-checklist" onclick="toggleExp(this)"></button>
+    </div>
+    <div class="exp-toggle-row">
+      <label for="tog-summary">📈 Month-wise Summary Sheet</label>
+      <button class="exp-toggle on" id="tog-summary" onclick="toggleExp(this)"></button>
+    </div>
+    <div class="exp-toggle-row">
+      <label for="tog-subtasks">↳ Expand sub-tasks as separate rows</label>
+      <button class="exp-toggle on" id="tog-subtasks" onclick="toggleExp(this)"></button>
+    </div>
+    <div class="exp-toggle-row">
+      <label for="tog-done">✅ Include completed tasks</label>
+      <button class="exp-toggle on" id="tog-done" onclick="toggleExp(this)"></button>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="exp-preview" id="expPreview">Select months to see preview</div>
+
+  <!-- Actions -->
+  <div style="display:flex;gap:8px;margin-top:18px">
+    <button class="btn btn-ex" style="flex:1;justify-content:center;font-size:.85rem" onclick="runExport()">
+      ⬇ Download Excel
+    </button>
+    <button class="btn btn-g" onclick="closeExportPanel()">Cancel</button>
+  </div>
+</div>
+
+
+<!-- ── ADD CARD MODAL ── -->
+<div class="overlay" id="cardModal">
+  <div class="modal">
+    <h2 id="modalH">New Task</h2>
+    <div class="fg"><label>Title *</label>
+      <input id="f-title" placeholder="What needs to be done?"/></div>
+    <div class="fg"><label>Description</label>
+      <textarea id="f-desc" rows="2" placeholder="Details or notes…"></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label>Column</label>
+        <select id="f-col">
+          <option value="todo">To Do</option>
+          <option value="today">Today's</option>
+          <option value="wip">WIP</option>
+          <option value="done">Completed</option>
+        </select></div>
+      <div class="fg"><label>Priority</label>
+        <select id="f-pri">
+          <option value="low">🟢 Low</option>
+          <option value="med" selected>🟡 Medium</option>
+          <option value="high">🔴 High</option>
+        </select></div>
+    </div>
+    <div class="fg"><label>Due Date</label>
+      <input type="date" id="f-date"/></div>
+    <div class="fg"><label>Sub-tasks / Checklist</label>
+      <div class="sub-builder">
+        <div class="sub-list" id="subList"></div>
+        <div class="sub-add-row">
+          <input class="sub-inp" id="subInp" placeholder="Add sub-task…"/>
+          <button class="btn btn-p btn-sm" onclick="addSub()">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-p" onclick="saveCard()">Save Task</button>
+      <button class="btn btn-g" onclick="closeModal('cardModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD CHECKLIST GROUP MODAL ── -->
+<div class="overlay" id="clGroupModal">
+  <div class="modal">
+    <h2>New Checklist Group</h2>
+    <div class="fg"><label>Group Name *</label>
+      <input id="cg-name" placeholder="e.g. Work Tasks, Personal Goals…"/></div>
+    <div class="modal-actions">
+      <button class="btn btn-p" onclick="saveClGroup()">Create</button>
+      <button class="btn btn-g" onclick="closeModal('clGroupModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   CONSTANTS & STATE
+═══════════════════════════════════════════════════ */
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const YEAR=2026;
+const COLS=[
+  {id:'todo',  label:'To Do',   color:'#6c8aff',icon:'📋'},
+  {id:'today', label:"Today's", color:'#ffb347',icon:'☀️'},
+  {id:'wip',   label:'WIP',     color:'#b48aff',icon:'⚡'},
+  {id:'done',  label:'Done',    color:'#3ddbbf',icon:'✅'},
+];
+
+let curMonth=new Date().getMonth();
+let curPage='dashboard';
+let dragCard=null,dragSrc=null;
+let clFilterMode='all', clSearchQ='';
+let tempSubs=[];
+let addColHint='todo';
+
+// data shape: { kanban:{[mi]:{todo,today,wip,done:[cards]}}, checklist:{[mi]:[groups]} }
+// card: {id,title,desc,priority,dueDate,done,subs:[{id,text,done}],createdAt,month}
+// group: {id,name,tasks:[{id,title,done,priority,dueDate,subs:[]}]}
+let db=JSON.parse(localStorage.getItem('fb3_db')||'null');
+if(!db){
+  db={kanban:{},checklist:{}};
+  MONTHS.forEach((_,i)=>{
+    db.kanban[i]={todo:[],today:[],wip:[],done:[]};
+    db.checklist[i]=[];
+  });
+}
+// ensure months exist
+MONTHS.forEach((_,i)=>{
+  if(!db.kanban[i]) db.kanban[i]={todo:[],today:[],wip:[],done:[]};
+  if(!db.checklist[i]) db.checklist[i]=[];
+});
+
+function save(){
+  localStorage.setItem('fb3_db',JSON.stringify(db));
+  updateBadges();
+}
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+
+/* ═══════════════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════════════ */
+const TITLES={dashboard:'Dashboard',kanban:'Kanban Board',checklist:'Task Checklist'};
+
+function nav(page,el){
+  curPage=page;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('pageTitle').textContent=TITLES[page];
+  render();
+}
+
+function render(){
+  updateBadges();
+  if(curPage==='dashboard') renderDash();
+  if(curPage==='kanban')    renderKanban();
+  if(curPage==='checklist') renderChecklist();
+}
+
+/* month */
+function buildMonthGrid(){
+  const g=document.getElementById('monthGrid');
+  g.innerHTML=MONTHS.map((m,i)=>`
+    <button class="m-btn ${i===curMonth?'active':''}" onclick="switchMonth(${i})">${m}</button>
+  `).join('');
+  document.getElementById('pageMonth').textContent=`${MONTHS[curMonth]} ${YEAR}`;
+}
+
+function switchMonth(i){
+  curMonth=i;
+  buildMonthGrid();
+  render();
+}
+
+/* ═══════════════════════════════════════════════════
+   BADGES
+═══════════════════════════════════════════════════ */
+function updateBadges(){
+  const kd=db.kanban[curMonth];
+  const kTotal=COLS.reduce((a,c)=>a+(kd[c.id]||[]).length,0);
+  document.getElementById('nb-kanban').textContent=kTotal;
+  const clGroups=db.checklist[curMonth]||[];
+  const clTotal=clGroups.reduce((a,g)=>a+g.tasks.length,0);
+  document.getElementById('nb-checklist').textContent=clTotal;
+}
+
+/* ═══════════════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════════════ */
+function renderDash(){
+  const kd=db.kanban[curMonth];
+  const todo=kd.todo.length, today=kd.today.length,
+        wip=kd.wip.length,   done=kd.done.length;
+  const total=todo+today+wip+done;
+  const pct=total?Math.round(done/total*100):0;
+
+  // KPIs
+  document.getElementById('kpiGrid').innerHTML=`
+    ${kpiCard('Total Tasks',total,'All months active','🗂','blue',pct)}
+    ${kpiCard("Today's Focus",today,'Tasks for today','☀️','amber',today?100:0)}
+    ${kpiCard('In Progress',wip,'Currently working','⚡','violet',wip?100:0)}
+    ${kpiCard('Completed',done,'This month','✅','mint',pct)}
+  `;
+
+  // Activity feed
+  const allCards=COLS.flatMap(c=>(kd[c.id]||[]).map(t=>({...t,col:c.label,colColor:c.color})));
+  const recent=allCards.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5);
+  document.getElementById('activityFeed').innerHTML = recent.length
+    ? recent.map(t=>`
+      <div class="tl-item">
+        <div class="tl-dot" style="background:${t.colColor}22;color:${t.colColor}">${t.done?'✓':'○'}</div>
+        <div class="tl-body">
+          <div class="tl-title">${esc(t.title)}</div>
+          <div class="tl-meta">${t.col} · ${priLabel(t.priority)} ${t.dueDate?'· Due '+fmt(t.dueDate):''}</div>
+        </div>
+      </div>`).join('')
+    : '<div style="color:var(--text3);font-size:.82rem;padding:12px 0">No tasks this month yet.</div>';
+
+  // Rings
+  const ringData=[
+    {label:'Done',val:pct,color:'var(--mint)'},
+    {label:'WIP',val:total?Math.round(wip/total*100):0,color:'var(--violet)'},
+    {label:'Today',val:total?Math.round(today/total*100):0,color:'var(--amber)'},
+  ];
+  const r=32,circ=2*Math.PI*r;
+  document.getElementById('ringArea').innerHTML=`
+    <div class="ring-row">
+      ${ringData.map(rd=>`
+        <div class="ring-item">
+          <svg class="ring" width="80" height="80" viewBox="0 0 80 80">
+            <circle class="ring-bg" cx="40" cy="40" r="${r}"/>
+            <circle class="ring-fg" cx="40" cy="40" r="${r}"
+              stroke="${rd.color}"
+              stroke-dasharray="${circ}"
+              stroke-dashoffset="${circ-(circ*rd.val/100)}"
+            />
+          </svg>
+          <div class="ring-val">${rd.val}%</div>
+          <div class="ring-label">${rd.label}</div>
+        </div>`).join('')}
+    </div>`;
+
+  // Bar chart
+  const maxV=Math.max(1,...MONTHS.map((_,i)=>COLS.reduce((a,c)=>a+(db.kanban[i][c.id]||[]).length,0)));
+  document.getElementById('barChart').innerHTML=MONTHS.map((m,i)=>{
+    const v=COLS.reduce((a,c)=>a+(db.kanban[i][c.id]||[]).length,0);
+    const h=Math.max(4,Math.round(v/maxV*72));
+    return `<div class="bar-col">
+      <div class="bar-fill" style="height:${h}px" title="${m}: ${v} tasks"></div>
+      <div class="bar-mlabel">${m.slice(0,1)}</div>
+    </div>`;
+  }).join('');
+}
+
+function kpiCard(label,val,sub,icon,cls,pct){
+  const barColor=cls==='blue'?'var(--indigo)':cls==='amber'?'var(--amber)':cls==='violet'?'var(--violet)':'var(--mint)';
+  return `<div class="kpi ${cls}">
+    <div class="kpi-label">${label}</div>
+    <div class="kpi-val">${val}</div>
+    <div class="kpi-sub">${sub}</div>
+    <div class="kpi-icon">${icon}</div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   KANBAN
+═══════════════════════════════════════════════════ */
+function renderKanban(){
+  const board=document.getElementById('page-kanban');
+  board.innerHTML=COLS.map(col=>`
+    <div class="k-col">
+      <div class="k-col-head">
+        <div class="k-col-title">
+          <span class="k-col-dot" style="background:${col.color}"></span>
+          ${col.icon} ${col.label}
+        </div>
+        <span class="k-count" id="kc-${col.id}">${(db.kanban[curMonth][col.id]||[]).length}</span>
+      </div>
+      <div class="k-cards" id="ka-${col.id}"
+           ondragover="kDragOver(event,'${col.id}')"
+           ondragleave="kDragLeave(event,'${col.id}')"
+           ondrop="kDrop(event,'${col.id}')">
+        ${renderKCards(col.id)}
+      </div>
+      <button class="add-k-btn" onclick="openAdd('${col.id}')">+ Add Task</button>
+    </div>
+  `).join('');
+}
+
+function renderKCards(colId){
+  const cards=db.kanban[curMonth][colId]||[];
+  if(!cards.length) return `<div class="k-empty"><span>${colId==='done'?'🎉':'📭'}</span>Empty</div>`;
+  return cards.map(c=>kCardHTML(c,colId)).join('');
+}
+
+function kCardHTML(c,colId){
+  const col=COLS.find(x=>x.id===colId);
+  const isDone=c.done||colId==='done';
+  const subs=c.subs||[];
+  const subDone=subs.filter(s=>s.done).length;
+  const subPct=subs.length?Math.round(subDone/subs.length*100):0;
+  return `
+  <div class="card" style="--col-c:${col.color}" id="kc-${c.id}"
+       draggable="true"
+       ondragstart="kDragStart(event,'${c.id}','${colId}')"
+       ondragend="kDragEnd()">
+    <div class="card-top">
+      <div class="card-check ${isDone?'on':''}" onclick="kToggle('${c.id}','${colId}')"></div>
+      <div class="card-title ${isDone?'done':''}">${esc(c.title)}</div>
+      <button class="card-del" onclick="kDel('${c.id}','${colId}')">✕</button>
+    </div>
+    <div class="card-meta">
+      <span class="badge b-${c.priority}">${priLabel(c.priority)}</span>
+      ${c.dueDate?`<span class="badge b-date">📅 ${fmt(c.dueDate)}</span>`:''}
+    </div>
+    ${c.desc?`<div class="card-desc">${esc(c.desc)}</div>`:''}
+    ${subs.length?`
+      <div class="card-checklist">
+        <div class="cl-progress">
+          <div class="cl-bar"><div class="cl-bar-fill" style="width:${subPct}%"></div></div>
+          <span class="cl-pct">${subDone}/${subs.length}</span>
+        </div>
+        ${subs.map(s=>`
+          <div class="cl-item">
+            <div class="cl-cb ${s.done?'on':''}" onclick="kSubToggle('${c.id}','${colId}','${s.id}')"></div>
+            <span class="cl-text ${s.done?'done':''}">${esc(s.text)}</span>
+          </div>`).join('')}
+      </div>`:''}
+  </div>`;
+}
+
+function kToggle(cid,colId){
+  const arr=db.kanban[curMonth][colId];
+  const idx=arr.findIndex(c=>c.id===cid);
+  if(idx<0)return;
+  const card=arr[idx];
+  if(colId!=='done'){
+    card.done=true; arr.splice(idx,1);
+    db.kanban[curMonth].done.unshift(card);
+    toast('✅ Moved to Completed!','ok');
+  } else {
+    card.done=false; arr.splice(idx,1);
+    db.kanban[curMonth].todo.unshift(card);
+    toast('↩ Moved to To Do');
+  }
+  save(); renderKanban();
+}
+
+function kSubToggle(cid,colId,sid){
+  const card=db.kanban[curMonth][colId].find(c=>c.id===cid);
+  if(!card)return;
+  const sub=card.subs.find(s=>s.id===sid);
+  if(sub) sub.done=!sub.done;
+  // auto-complete card when all subs done
+  if(card.subs.length && card.subs.every(s=>s.done) && colId!=='done'){
+    const arr=db.kanban[curMonth][colId];
+    arr.splice(arr.findIndex(c=>c.id===cid),1);
+    card.done=true; db.kanban[curMonth].done.unshift(card);
+    save(); renderKanban();
+    toast('🎉 All sub-tasks done — moved to Completed!','ok'); return;
+  }
+  save(); renderKanban();
+}
+
+function kDel(cid,colId){
+  db.kanban[curMonth][colId]=db.kanban[curMonth][colId].filter(c=>c.id!==cid);
+  save(); renderKanban();
+}
+
+/* drag */
+function kDragStart(e,cid,colId){dragCard=cid;dragSrc=colId;setTimeout(()=>{const el=document.getElementById('kc-'+cid);if(el)el.classList.add('dragging')},0)}
+function kDragEnd(){document.querySelectorAll('.card.dragging').forEach(e=>e.classList.remove('dragging'));document.querySelectorAll('.k-cards.over').forEach(e=>e.classList.remove('over'))}
+function kDragOver(e,colId){e.preventDefault();document.getElementById('ka-'+colId).classList.add('over')}
+function kDragLeave(e,colId){document.getElementById('ka-'+colId).classList.remove('over')}
+function kDrop(e,tgt){
+  e.preventDefault();
+  document.getElementById('ka-'+tgt).classList.remove('over');
+  if(!dragCard||dragSrc===tgt)return;
+  const arr=db.kanban[curMonth][dragSrc];
+  const idx=arr.findIndex(c=>c.id===dragCard);
+  if(idx<0)return;
+  const[card]=arr.splice(idx,1);
+  card.done=(tgt==='done');
+  db.kanban[curMonth][tgt].unshift(card);
+  save(); renderKanban();
+  if(tgt==='done') toast('✅ Task completed!','ok');
+}
+
+/* ═══════════════════════════════════════════════════
+   CHECKLIST PAGE
+═══════════════════════════════════════════════════ */
+function renderChecklist(){
+  const groups=db.checklist[curMonth]||[];
+  let filtered=groups.map(g=>{
+    let tasks=g.tasks;
+    if(clFilterMode==='pending') tasks=tasks.filter(t=>!t.done);
+    if(clFilterMode==='done')    tasks=tasks.filter(t=>t.done);
+    if(clSearchQ) tasks=tasks.filter(t=>t.title.toLowerCase().includes(clSearchQ.toLowerCase()));
+    return {...g,tasks};
+  });
+
+  document.getElementById('clList').innerHTML = filtered.length
+    ? filtered.map(g=>clGroupHTML(g)).join('')
+    : `<div class="k-empty" style="padding:40px"><span>📋</span>No checklist groups yet. Create one to get started.</div>`;
+}
+
+function clGroupHTML(g){
+  const real=db.checklist[curMonth].find(x=>x.id===g.id)||g;
+  const total=real.tasks.length, done=real.tasks.filter(t=>t.done).length;
+  const pct=total?Math.round(done/total*100):0;
+  const pfColor=pct===100?'var(--mint)':pct>50?'var(--violet)':'var(--indigo)';
+  return `
+  <div class="cl-group" id="clg-${g.id}">
+    <div class="cl-group-header" onclick="toggleClGroup('${g.id}')">
+      <span style="font-size:1rem;margin-right:2px">📂</span>
+      <div class="cl-group-title">${esc(g.name)}</div>
+      <div class="cl-group-prog">
+        <span>${done}/${total}</span>
+        <div class="cl-group-pbar"><div class="cl-group-pfill" style="width:${pct}%;background:${pfColor}"></div></div>
+        <span>${pct}%</span>
+      </div>
+      <button class="btn btn-g btn-sm" style="margin-right:4px" onclick="event.stopPropagation();delClGroup('${g.id}')">🗑</button>
+      <span class="cl-group-arrow">▾</span>
+    </div>
+    <div class="cl-group-body">
+      ${g.tasks.length
+        ? g.tasks.map(t=>clTaskHTML(t,g.id)).join('')
+        : `<div style="color:var(--text3);font-size:.78rem;padding:8px 0">No tasks. Add one below.</div>`}
+      <div class="add-task-row">
+        <input class="add-task-inp" id="at-${g.id}" placeholder="+ Add task…" onkeydown="if(event.key==='Enter')addClTask('${g.id}')"/>
+        <button class="btn btn-p btn-sm" onclick="addClTask('${g.id}')">Add</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function clTaskHTML(t,gid){
+  const subs=t.subs||[];
+  const subDone=subs.filter(s=>s.done).length;
+  const subPct=subs.length?Math.round(subDone/subs.length*100):0;
+  return `
+  <div class="cl-task-item" id="clt-${t.id}">
+    <div class="cl-big-cb ${t.done?'on':''}" onclick="clToggleTask('${gid}','${t.id}')"></div>
+    <div class="cl-task-body">
+      <div class="cl-task-title ${t.done?'done':''}">${esc(t.title)}</div>
+      <div class="cl-task-meta">
+        <span class="badge b-${t.priority}">${priLabel(t.priority)}</span>
+        ${t.dueDate?`<span class="badge b-date">📅 ${fmt(t.dueDate)}</span>`:''}
+        ${subs.length?`<span class="badge" style="background:var(--violet-dim);color:var(--violet)">${subDone}/${subs.length} subs</span>`:''}
+      </div>
+      ${subs.length?`
+        <div class="cl-task-sub">
+          <div class="cl-progress" style="margin-bottom:4px">
+            <div class="cl-bar"><div class="cl-bar-fill" style="width:${subPct}%;background:var(--violet)"></div></div>
+            <span class="cl-pct">${subPct}%</span>
+          </div>
+          ${subs.map(s=>`
+            <div class="cl-sub-item">
+              <div class="cl-sub-cb ${s.done?'on':''}" onclick="clToggleSub('${gid}','${t.id}','${s.id}')"></div>
+              <span class="cl-sub-text ${s.done?'done':''}">${esc(s.text)}</span>
+            </div>`).join('')}
+        </div>`:''}
+    </div>
+    <button class="cl-task-del" onclick="clDelTask('${gid}','${t.id}')">✕</button>
+  </div>`;
+}
+
+function toggleClGroup(gid){
+  document.getElementById('clg-'+gid)?.classList.toggle('collapsed');
+}
+
+function clFilter(mode,el){
+  clFilterMode=mode;
+  document.querySelectorAll('.cl-filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderChecklist();
+}
+
+function clSearch(v){clSearchQ=v;renderChecklist()}
+
+function addClTask(gid){
+  const inp=document.getElementById('at-'+gid);
+  const title=inp.value.trim();
+  if(!title)return;
+  const g=db.checklist[curMonth].find(x=>x.id===gid);
+  if(!g)return;
+  g.tasks.push({id:uid(),title,done:false,priority:'med',dueDate:'',subs:[]});
+  inp.value='';
+  save(); renderChecklist();
+}
+
+function clToggleTask(gid,tid){
+  const g=db.checklist[curMonth].find(x=>x.id===gid);
+  if(!g)return;
+  const t=g.tasks.find(x=>x.id===tid);
+  if(t) t.done=!t.done;
+  save(); renderChecklist();
+  if(t&&t.done) toast('✅ Task done!','ok');
+}
+
+function clToggleSub(gid,tid,sid){
+  const g=db.checklist[curMonth].find(x=>x.id===gid);
+  if(!g)return;
+  const t=g.tasks.find(x=>x.id===tid);
+  if(!t)return;
+  const s=t.subs.find(x=>x.id===sid);
+  if(s) s.done=!s.done;
+  if(t.subs.length&&t.subs.every(s=>s.done)){t.done=true;toast('🎉 All sub-tasks done!','ok')}
+  save(); renderChecklist();
+}
+
+function clDelTask(gid,tid){
+  const g=db.checklist[curMonth].find(x=>x.id===gid);
+  if(g) g.tasks=g.tasks.filter(t=>t.id!==tid);
+  save(); renderChecklist();
+}
+
+function delClGroup(gid){
+  db.checklist[curMonth]=db.checklist[curMonth].filter(g=>g.id!==gid);
+  save(); renderChecklist();
+}
+
+/* ═══════════════════════════════════════════════════
+   ADD CARD MODAL
+═══════════════════════════════════════════════════ */
+function openAdd(colHint){
+  addColHint=colHint||'todo';
+  document.getElementById('f-title').value='';
+  document.getElementById('f-desc').value='';
+  document.getElementById('f-col').value=addColHint;
+  document.getElementById('f-pri').value='med';
+  document.getElementById('f-date').value='';
+  tempSubs=[];
+  renderSubList();
+  document.getElementById('modalH').textContent='New Task';
+  document.getElementById('cardModal').classList.add('open');
+  setTimeout(()=>document.getElementById('f-title').focus(),80);
+}
+
+function addSub(){
+  const inp=document.getElementById('subInp');
+  const t=inp.value.trim();
+  if(!t)return;
+  tempSubs.push({id:uid(),text:t,done:false});
+  inp.value='';
+  renderSubList();
+}
+
+document.getElementById('subInp').addEventListener('keydown',e=>{if(e.key==='Enter')addSub()});
+
+function renderSubList(){
+  document.getElementById('subList').innerHTML=tempSubs.map(s=>`
+    <div class="sub-row">
+      <span>${esc(s.text)}</span>
+      <button onclick="removeSub('${s.id}')">✕</button>
+    </div>`).join('');
+}
+
+function removeSub(id){tempSubs=tempSubs.filter(s=>s.id!==id);renderSubList()}
+
+function saveCard(){
+  const title=document.getElementById('f-title').value.trim();
+  if(!title){document.getElementById('f-title').focus();return}
+  const colId=document.getElementById('f-col').value;
+  const card={
+    id:uid(),
+    title,
+    desc:document.getElementById('f-desc').value.trim(),
+    priority:document.getElementById('f-pri').value,
+    dueDate:document.getElementById('f-date').value,
+    done:colId==='done',
+    subs:[...tempSubs],
+    createdAt:new Date().toISOString(),
+    month:MONTHS[curMonth],
+  };
+  db.kanban[curMonth][colId].unshift(card);
+  save();
+  closeModal('cardModal');
+  if(curPage==='kanban') renderKanban();
+  else if(curPage==='dashboard') renderDash();
+  toast('Task added!','ok');
+}
+
+/* ═══════════════════════════════════════════════════
+   ADD CHECKLIST GROUP MODAL
+═══════════════════════════════════════════════════ */
+function openAddCheckGroup(){
+  document.getElementById('cg-name').value='';
+  document.getElementById('clGroupModal').classList.add('open');
+  setTimeout(()=>document.getElementById('cg-name').focus(),80);
+}
+
+function saveClGroup(){
+  const name=document.getElementById('cg-name').value.trim();
+  if(!name){document.getElementById('cg-name').focus();return}
+  db.checklist[curMonth].push({id:uid(),name,tasks:[]});
+  save();
+  closeModal('clGroupModal');
+  renderChecklist();
+  toast('Group created!','ok');
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+
+document.querySelectorAll('.overlay').forEach(o=>{
+  o.addEventListener('click',e=>{if(e.target===e.currentTarget)o.classList.remove('open')});
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'))});
+
+/* ═══════════════════════════════════════════════════
+   EXCEL EXPORT
+═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
+   EXPORT ENGINE
+═══════════════════════════════════════════════════ */
+
+let expSelMonths = new Set();
+
+function openExportPanel() {
+  // Default: current month selected
+  expSelMonths = new Set([curMonth]);
+  buildExpMonthGrid();
+  updateExpPreview();
+  document.getElementById('expPanel').classList.add('open');
+  document.getElementById('expOverlay').classList.add('open');
+}
+function closeExportPanel() {
+  document.getElementById('expPanel').classList.remove('open');
+  document.getElementById('expOverlay').classList.remove('open');
+}
+
+function buildExpMonthGrid() {
+  const grid = document.getElementById('expMonthGrid');
+  grid.innerHTML = MONTHS.map((m, i) => {
+    const kd = db.kanban[i];
+    const hasData = COLS.some(c => (kd[c.id]||[]).length > 0) ||
+                    (db.checklist[i]||[]).some(g => g.tasks.length > 0);
+    return `<button class="exp-m ${expSelMonths.has(i)?'sel':''} ${hasData?'has-data':''}"
+      onclick="expToggleMonth(${i})" title="${m} ${YEAR}">
+      ${m}<span class="exp-m-dot"></span>
+    </button>`;
+  }).join('');
+}
+
+function expToggleMonth(i) {
+  expSelMonths.has(i) ? expSelMonths.delete(i) : expSelMonths.add(i);
+  buildExpMonthGrid();
+  updateExpPreview();
+}
+function expSelectAll()       { MONTHS.forEach((_,i) => expSelMonths.add(i));    buildExpMonthGrid(); updateExpPreview(); }
+function expSelectNone()      { expSelMonths.clear();                             buildExpMonthGrid(); updateExpPreview(); }
+function expSelectCurrent()   { expSelMonths.clear(); expSelMonths.add(curMonth); buildExpMonthGrid(); updateExpPreview(); }
+function expSelectWithData()  {
+  expSelMonths.clear();
+  MONTHS.forEach((_,i) => {
+    const kd = db.kanban[i];
+    const hasData = COLS.some(c => (kd[c.id]||[]).length > 0) ||
+                    (db.checklist[i]||[]).some(g => g.tasks.length > 0);
+    if (hasData) expSelMonths.add(i);
+  });
+  buildExpMonthGrid(); updateExpPreview();
+}
+
+function toggleExp(btn) { btn.classList.toggle('on'); updateExpPreview(); }
+function isOn(id)       { return document.getElementById(id).classList.contains('on'); }
+
+function updateExpPreview() {
+  const months = [...expSelMonths].sort();
+  const inclKanban    = isOn('tog-kanban');
+  const inclChecklist = isOn('tog-checklist');
+  const inclSummary   = isOn('tog-summary');
+  const inclDone      = isOn('tog-done');
+
+  if (!months.length) {
+    document.getElementById('expPreview').innerHTML = '⚠ No months selected.';
+    return;
+  }
+
+  let totalCards = 0, totalTasks = 0, sheets = 0;
+  months.forEach(mi => {
+    const kd = db.kanban[mi];
+    COLS.forEach(col => {
+      const cards = (kd[col.id]||[]).filter(c => inclDone || !c.done);
+      totalCards += cards.length;
+    });
+    (db.checklist[mi]||[]).forEach(g => {
+      totalTasks += g.tasks.filter(t => inclDone || !t.done).length;
+    });
+    if (inclKanban)    sheets++;
+    if (inclChecklist) sheets++;
+  });
+  if (inclSummary) sheets++;
+
+  const monthNames = months.map(i => MONTHS[i]).join(', ');
+  document.getElementById('expPreview').innerHTML = `
+    <strong>Exporting:</strong> ${monthNames}<br>
+    <strong>Sheets:</strong> ${sheets} total
+    ${inclKanban    ? `· <span style="color:var(--indigo)">${months.length} Kanban sheet${months.length>1?'s':''} (${totalCards} cards)</span>` : ''}
+    ${inclChecklist ? `· <span style="color:var(--violet)">${months.length} Checklist sheet${months.length>1?'s':''} (${totalTasks} tasks)</span>` : ''}
+    ${inclSummary   ? `· <span style="color:var(--mint)">1 Summary sheet</span>` : ''}
+    <br><strong>File:</strong> FlowBoard_Export_${months.length===1?MONTHS[months[0]]:months.length+'months'}_${YEAR}.xlsx
+  `;
+}
+
+// ── Cell style helpers ─────────────────────────────────────────────────────
+function hdrStyle(bgArgb) {
+  return {
+    font:  { bold: true, color: { argb: 'FFFFFFFF' }, sz: 10 },
+    fill:  { type: 'pattern', pattern: 'solid', fgColor: { argb: bgArgb } },
+    alignment: { vertical: 'middle', horizontal: 'center', wrapText: true },
+    border: {
+      bottom: { style: 'thin', color: { argb: 'FF333755' } },
+      right:  { style: 'thin', color: { argb: 'FF333755' } },
+    }
+  };
+}
+function cellStyle(bgArgb, fgArgb, bold, center) {
+  return {
+    font:      { color: { argb: fgArgb||'FFE8EAF2' }, sz: 9, bold: !!bold },
+    fill:      bgArgb ? { type:'pattern', pattern:'solid', fgColor:{ argb: bgArgb } } : undefined,
+    alignment: { vertical:'middle', horizontal: center?'center':'left', wrapText: true },
+    border: {
+      bottom: { style: 'thin', color: { argb: 'FF1F2333' } },
+      right:  { style: 'thin', color: { argb: 'FF1F2333' } },
+    }
+  };
+}
+function applyRow(ws, rowNum, styles) {
+  const row = ws.getRow(rowNum);
+  row.height = styles._h || 18;
+  styles.cells && styles.cells.forEach((s, ci) => {
+    if (!s) return;
+    const cell = row.getCell(ci + 1);
+    if (s.fill)      cell.fill      = s.fill;
+    if (s.font)      cell.font      = s.font;
+    if (s.alignment) cell.alignment = s.alignment;
+    if (s.border)    cell.border    = s.border;
+    if (s.numFmt)    cell.numFmt    = s.numFmt;
+  });
+  row.commit();
+}
+
+// ── Main export runner ──────────────────────────────────────────────────────
+function runExport() {
+  const months        = [...expSelMonths].sort();
+  const inclKanban    = isOn('tog-kanban');
+  const inclChecklist = isOn('tog-checklist');
+  const inclSummary   = isOn('tog-summary');
+  const inclSubtasks  = isOn('tog-subtasks');
+  const inclDone      = isOn('tog-done');
+
+  if (!months.length) { toast('⚠ Select at least one month'); return; }
+
+  // Use ExcelJS-style via SheetJS with rich formatting
+  const wb = XLSX.utils.book_new();
+
+  // Colour palette (ARGB)
+  const C = {
+    bg:       'FF0D0F14',
+    s1:       'FF0E1018',
+    s2:       'FF13161F',
+    s3:       'FF191D29',
+    s4:       'FF1F2333',
+    border:   'FF252A3A',
+    indigo:   'FF6C8AFF',
+    amber:    'FFFFB347',
+    violet:   'FFB48AFF',
+    mint:     'FF3DDBBF',
+    rose:     'FFFF6584',
+    text:     'FFE8EAF2',
+    muted:    'FF9AA0BC',
+    dim:      'FF5C6382',
+    white:    'FFFFFFFF',
+    colTodo:  'FF2B3563',
+    colToday: 'FF3D2B18',
+    colWip:   'FF2B2450',
+    colDone:  'FF123D30',
+  };
+
+  const colColors = { todo: C.colTodo, today: C.colToday, wip: C.colWip, done: C.colDone };
+  const colHdr    = { todo: C.indigo,  today: C.amber,    wip: C.violet, done: C.mint    };
+  const priColor  = { high: C.rose, med: C.amber, low: C.mint };
+
+  // ── KANBAN SHEETS ──────────────────────────────────────────────────────────
+  if (inclKanban) {
+    months.forEach(mi => {
+      const m   = MONTHS[mi];
+      const kd  = db.kanban[mi];
+      const aoa = [];
+
+      // Sheet title row
+      aoa.push([`FlowBoard Pro — Kanban Tasks — ${m} ${YEAR}`, '', '', '', '', '', '', '', '', '']);
+
+      // For each column group
+      COLS.forEach(col => {
+        let cards = kd[col.id] || [];
+        if (!inclDone && col.id === 'done') return;
+        if (!inclDone) cards = cards.filter(c => !c.done);
+        if (!cards.length) return;
+
+        // Column header
+        aoa.push([]);
+        aoa.push([`${col.icon} ${col.label.toUpperCase()}`, '', '', '', '', '', '', '', '', '']);
+
+        // Column sub-header
+        if (inclSubtasks) {
+          aoa.push(['#', 'Task Title', 'Description', 'Priority', 'Due Date', 'Status', 'Migrated From', 'Sub-task', 'Sub Done', 'Created']);
+        } else {
+          aoa.push(['#', 'Task Title', 'Description', 'Priority', 'Due Date', 'Status', 'Migrated From', 'Sub-tasks', 'Done/Total', 'Created']);
+        }
+
+        let rowN = 1;
+        cards.forEach(c => {
+          const subs    = c.subs || [];
+          const subDone = subs.filter(s => s.done).length;
+          const status  = col.id === 'done' ? 'Completed' : c.done ? 'Completed' : col.label;
+          const created = c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN') : '';
+          const due     = c.dueDate   ? new Date(c.dueDate + 'T00:00').toLocaleDateString('en-IN') : '';
+          const migFrom = c.migratedFrom || '';
+
+          if (inclSubtasks && subs.length > 0) {
+            // First row: card info + first sub-task
+            aoa.push([rowN, c.title, c.desc||'', priLabel(c.priority), due, status, migFrom,
+              subs[0]?.text || '', subs[0]?.done ? '✓' : '○', created]);
+            // Additional sub-task rows
+            subs.slice(1).forEach(s => {
+              aoa.push(['', '', '', '', '', '', '', s.text, s.done ? '✓' : '○', '']);
+            });
+          } else {
+            // Single row with sub-task summary
+            aoa.push([rowN, c.title, c.desc||'', priLabel(c.priority), due, status, migFrom,
+              subs.map(s => (s.done?'[✓] ':'[ ] ') + s.text).join(' | ') || '',
+              subs.length ? `${subDone}/${subs.length}` : '', created]);
+          }
+          rowN++;
+        });
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+      // Column widths
+      ws['!cols'] = [
+        {wch:4},{wch:30},{wch:28},{wch:10},{wch:12},{wch:12},
+        {wch:13},{wch:36},{wch:10},{wch:13}
+      ];
+
+      // Row heights & merges for title
+      ws['!rows'] = [{ hpt: 28 }];
+      ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:9} }];
+
+      // Style the title cell
+      const titleCell = ws['A1'];
+      if (titleCell) {
+        titleCell.s = {
+          font:      { bold:true, sz:13, color:{ argb: C.white } },
+          fill:      { type:'pattern', pattern:'solid', fgColor:{ argb:'FF161921' } },
+          alignment: { vertical:'middle', horizontal:'left' },
+        };
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, `${m}-Kanban`);
+    });
+  }
+
+  // ── CHECKLIST SHEETS ───────────────────────────────────────────────────────
+  if (inclChecklist) {
+    months.forEach(mi => {
+      const m      = MONTHS[mi];
+      const groups = db.checklist[mi] || [];
+      if (!groups.length) return;
+
+      const aoa = [];
+      aoa.push([`FlowBoard Pro — Checklists — ${m} ${YEAR}`, '', '', '', '', '', '', '']);
+
+      groups.forEach(g => {
+        let tasks = g.tasks;
+        if (!inclDone) tasks = tasks.filter(t => !t.done);
+        if (!tasks.length) return;
+
+        const total    = g.tasks.length;
+        const done     = g.tasks.filter(t => t.done).length;
+        const pct      = total ? Math.round(done/total*100) : 0;
+
+        aoa.push([]);
+        aoa.push([`📂 ${g.name.toUpperCase()}`, '', '', `${done}/${total} done (${pct}%)`, '', '', '', '']);
+        aoa.push(['#', 'Task Title', 'Priority', 'Due Date', 'Status', 'Sub-task', 'Sub Done', 'Notes']);
+
+        let rowN = 1;
+        tasks.forEach(t => {
+          const subs    = t.subs || [];
+          const subDone = subs.filter(s => s.done).length;
+          const due     = t.dueDate ? new Date(t.dueDate+'T00:00').toLocaleDateString('en-IN') : '';
+
+          if (inclSubtasks && subs.length > 0) {
+            aoa.push([rowN, t.title, priLabel(t.priority), due, t.done?'Done':'Pending',
+              subs[0]?.text||'', subs[0]?.done?'✓':'○', '']);
+            subs.slice(1).forEach(s => {
+              aoa.push(['','','','','', s.text, s.done?'✓':'○', '']);
+            });
+          } else {
+            aoa.push([rowN, t.title, priLabel(t.priority), due, t.done?'Done':'Pending',
+              subs.map(s=>(s.done?'[✓] ':'[ ] ')+s.text).join(' | ')||'',
+              subs.length?`${subDone}/${subs.length}`:'', '']);
+          }
+          rowN++;
+        });
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{wch:4},{wch:34},{wch:10},{wch:12},{wch:11},{wch:38},{wch:10},{wch:18}];
+      ws['!rows'] = [{ hpt: 28 }];
+      ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:7} }];
+
+      const titleCell = ws['A1'];
+      if (titleCell) {
+        titleCell.s = {
+          font:      { bold:true, sz:13, color:{ argb: C.white } },
+          fill:      { type:'pattern', pattern:'solid', fgColor:{ argb:'FF161921' } },
+          alignment: { vertical:'middle', horizontal:'left' },
+        };
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, `${m}-Checklist`);
+    });
+  }
+
+  // ── SUMMARY SHEET ──────────────────────────────────────────────────────────
+  if (inclSummary) {
+    const aoa = [];
+
+    // Title
+    aoa.push(['FlowBoard Pro — Month-wise Summary', '', '', '', '', '', '', '', '', '', '']);
+    aoa.push([]);
+
+    // Header
+    aoa.push([
+      'Month', 'Year',
+      'To Do', "Today's", 'WIP', 'Completed', 'Total Kanban',
+      'Completion %',
+      'CL Groups', 'CL Tasks', 'CL Done', 'CL Pending', 'CL %',
+      'Migrated In', 'Notes'
+    ]);
+
+    let grandTodo=0, grandToday=0, grandWip=0, grandDone=0, grandCl=0, grandClDone=0;
+
+    MONTHS.forEach((m, mi) => {
+      const kd       = db.kanban[mi];
+      const todo     = (kd.todo  ||[]).length;
+      const today    = (kd.today ||[]).length;
+      const wip      = (kd.wip   ||[]).length;
+      const done     = (kd.done  ||[]).length;
+      const total    = todo + today + wip + done;
+      const pct      = total ? Math.round(done / total * 100) : 0;
+
+      const clGroups = db.checklist[mi] || [];
+      const clTasks  = clGroups.reduce((a,g) => a + g.tasks.length, 0);
+      const clDone   = clGroups.reduce((a,g) => a + g.tasks.filter(t=>t.done).length, 0);
+      const clPct    = clTasks ? Math.round(clDone/clTasks*100) : 0;
+
+      const migIn    = (db.migrations||[]).filter(mg => mg.to === mi)
+                         .reduce((a,mg) => a + mg.kanban + mg.checklist, 0);
+
+      const isSelected = expSelMonths.has(mi);
+      const hasCurrent = mi === new Date().getMonth();
+      const note = hasCurrent ? 'Current Month' : !total && !clTasks ? 'No data' : '';
+
+      aoa.push([
+        m, YEAR,
+        todo, today, wip, done, total,
+        pct + '%',
+        clGroups.length, clTasks, clDone, clTasks - clDone, clPct + '%',
+        migIn || '',
+        note
+      ]);
+
+      grandTodo += todo; grandToday += today; grandWip += wip; grandDone += done;
+      grandCl += clTasks; grandClDone += clDone;
+    });
+
+    // Totals row
+    aoa.push([]);
+    const grandTotal = grandTodo + grandToday + grandWip + grandDone;
+    const grandPct   = grandTotal ? Math.round(grandDone/grandTotal*100) : 0;
+    const grandClPct = grandCl ? Math.round(grandClDone/grandCl*100) : 0;
+    aoa.push([
+      'TOTAL', YEAR,
+      grandTodo, grandToday, grandWip, grandDone, grandTotal,
+      grandPct + '%',
+      '', grandCl, grandClDone, grandCl - grandClDone, grandClPct + '%',
+      '', ''
+    ]);
+
+    // Monthly breakdown chart data (text-based sparkline)
+    aoa.push([]);
+    aoa.push(['Monthly Completion Overview', '', '', '', '', '', '', '', '', '', '']);
+    aoa.push(['Month', 'Total Tasks', 'Completed', 'Completion %', 'Progress Bar']);
+    MONTHS.forEach((m, mi) => {
+      const kd    = db.kanban[mi];
+      const total = COLS.reduce((a,c) => a + (kd[c.id]||[]).length, 0);
+      const done  = (kd.done||[]).length;
+      const pct   = total ? Math.round(done/total*100) : 0;
+      const bar   = '█'.repeat(Math.round(pct/10)) + '░'.repeat(10-Math.round(pct/10));
+      aoa.push([m, total, done, pct+'%', bar + ` ${pct}%`]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [
+      {wch:8},{wch:6},{wch:8},{wch:9},{wch:8},{wch:11},{wch:12},
+      {wch:12},{wch:10},{wch:10},{wch:8},{wch:10},{wch:8},{wch:12},{wch:16}
+    ];
+    ws['!rows'] = [{ hpt: 26 }];
+    ws['!merges'] = [
+      { s:{r:0,c:0}, e:{r:0,c:14} },
+    ];
+
+    const tCell = ws['A1'];
+    if (tCell) {
+      tCell.s = {
+        font:      { bold:true, sz:13, color:{ argb: C.white } },
+        fill:      { type:'pattern', pattern:'solid', fgColor:{ argb:'FF161921' } },
+        alignment: { vertical:'middle', horizontal:'left' },
+      };
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+  }
+
+  // ── Write file ─────────────────────────────────────────────────────────────
+  const monthTag = expSelMonths.size === 1
+    ? MONTHS[[...expSelMonths][0]]
+    : `${expSelMonths.size}months`;
+  const fname = `FlowBoard_${monthTag}_${YEAR}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  closeExportPanel();
+  toast(`📊 Exported: ${fname}`, 'ok');
+}
+
+function exportExcel() { openExportPanel(); }
+
+
+
+/* ═══════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════ */
+function priLabel(p){return p==='high'?'🔴 High':p==='med'?'🟡 Med':'🟢 Low'}
+function fmt(d){
+  if(!d)return'';
+  const dt=new Date(d+'T00:00');
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+let _toastT;
+function toast(msg,type=''){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  clearTimeout(_toastT);
+  const t=document.createElement('div');
+  t.className='toast '+(type||'');
+  t.innerHTML=`<span class="ti">${type==='ok'?'✓':'ℹ'}</span>${msg}`;
+  document.body.appendChild(t);
+  _toastT=setTimeout(()=>t.remove(),2600);
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
+   MONTH ROLLOVER / AUTO-MIGRATION ENGINE
+═══════════════════════════════════════════════════ */
+
+// Returns last day of a month (0-based index)
+function lastDayOfMonth(monthIdx, year) {
+  return new Date(year, monthIdx + 1, 0).getDate();
+}
+
+// Check if today is past the end of a given month
+function isMonthPast(monthIdx) {
+  const now  = new Date();
+  const last = new Date(YEAR, monthIdx + 1, 0); // last day of that month
+  last.setHours(23, 59, 59, 999);
+  return now > last;
+}
+
+// Check if today is the first day of current real month (trigger day)
+function isTodayFirstOfMonth() {
+  return new Date().getDate() === 1;
+}
+
+// Get incomplete kanban cards from a month (todo + today + wip)
+function getIncompleteCards(monthIdx) {
+  const kd = db.kanban[monthIdx];
+  return [
+    ...( kd.todo  || [] ).map(c => ({ ...c, _fromCol: 'todo'  })),
+    ...( kd.today || [] ).map(c => ({ ...c, _fromCol: 'today' })),
+    ...( kd.wip   || [] ).map(c => ({ ...c, _fromCol: 'wip'   })),
+  ];
+}
+
+// Get incomplete checklist tasks from a month
+function getIncompleteClTasks(monthIdx) {
+  const groups = db.checklist[monthIdx] || [];
+  const result = [];
+  groups.forEach(g => {
+    g.tasks.filter(t => !t.done).forEach(t => {
+      result.push({ groupName: g.name, groupId: g.id, task: t });
+    });
+  });
+  return result;
+}
+
+// Migrate incomplete tasks from monthIdx → monthIdx+1
+function migrateMonth(monthIdx, opts = {}) {
+  if (monthIdx >= 11) return { kanban: 0, checklist: 0 };
+  const target = monthIdx + 1;
+  let movedKanban = 0, movedChecklist = 0;
+
+  // ── Kanban ──
+  if (opts.kanban !== false) {
+    const cols = opts.cols || ['todo', 'today', 'wip'];
+    cols.forEach(colId => {
+      const src = db.kanban[monthIdx][colId] || [];
+      const incomplete = src.filter(c => !c.done);
+      const stay       = src.filter(c =>  c.done);
+
+      incomplete.forEach(c => {
+        const migrated = {
+          ...c,
+          id:          uid(),           // new id to avoid duplication
+          migratedFrom: MONTHS[monthIdx],
+          migratedAt:   new Date().toISOString(),
+          originalId:   c.id,
+        };
+        // Route: 'today' → 'todo' on new month; others keep column
+        const destCol = colId === 'today' ? 'todo' : colId;
+        db.kanban[target][destCol] = db.kanban[target][destCol] || [];
+        db.kanban[target][destCol].unshift(migrated);
+        movedKanban++;
+      });
+
+      // Leave only completed in source month
+      db.kanban[monthIdx][colId] = stay;
+    });
+  }
+
+  // ── Checklist ──
+  if (opts.checklist !== false) {
+    const srcGroups = db.checklist[monthIdx] || [];
+    srcGroups.forEach(g => {
+      const incomplete = g.tasks.filter(t => !t.done);
+      if (!incomplete.length) return;
+
+      // Find or create matching group in target month
+      let tgtGroup = db.checklist[target].find(x => x.name === g.name);
+      if (!tgtGroup) {
+        tgtGroup = { id: uid(), name: g.name, tasks: [] };
+        db.checklist[target].push(tgtGroup);
+      }
+
+      incomplete.forEach(t => {
+        tgtGroup.tasks.unshift({
+          ...t,
+          id:           uid(),
+          migratedFrom: MONTHS[monthIdx],
+          migratedAt:   new Date().toISOString(),
+          originalId:   t.id,
+        });
+        movedChecklist++;
+      });
+
+      // Remove migrated tasks from source
+      g.tasks = g.tasks.filter(t => t.done);
+    });
+  }
+
+  // Record migration in db
+  if (!db.migrations) db.migrations = [];
+  db.migrations.push({
+    from:       monthIdx,
+    to:         target,
+    kanban:     movedKanban,
+    checklist:  movedChecklist,
+    at:         new Date().toISOString(),
+    auto:       opts.auto || false,
+  });
+
+  save();
+  return { kanban: movedKanban, checklist: movedChecklist };
+}
+
+// Auto-migrate: runs on app load, checks all past months silently
+function autoMigrateCheck() {
+  const realMonth = new Date().getMonth();
+  let totalMoved = 0;
+
+  // Check every month that has passed relative to real calendar month
+  for (let mi = 0; mi < realMonth; mi++) {
+    if (!isMonthPast(mi)) continue;
+
+    const incomplete   = getIncompleteCards(mi);
+    const incompleteCl = getIncompleteClTasks(mi);
+    if (!incomplete.length && !incompleteCl.length) continue;
+
+    // Check if already auto-migrated this month
+    const alreadyDone = (db.migrations || []).some(
+      m => m.from === mi && m.to === mi + 1 && m.auto
+    );
+    if (alreadyDone) continue;
+
+    // Auto-migrate silently
+    const result = migrateMonth(mi, { auto: true });
+    totalMoved += result.kanban + result.checklist;
+  }
+
+  // Show badge on sidebar if pending migration for current month
+  checkMigrateBadge();
+
+  if (totalMoved > 0) {
+    toast(`🔄 ${totalMoved} incomplete task${totalMoved > 1 ? 's' : ''} auto-moved to next month`, 'ok');
+  }
+}
+
+// Show/hide the amber badge on "Month Rollover" nav item
+function checkMigrateBadge() {
+  const realMonth = new Date().getMonth();
+  const badge = document.getElementById('nb-migrate');
+  if (!badge) return;
+
+  // Badge if current real month has past months with unmigrated tasks
+  let hasPending = false;
+  for (let mi = 0; mi < realMonth; mi++) {
+    if (!isMonthPast(mi)) continue;
+    const alreadyDone = (db.migrations || []).some(m => m.from === mi && m.to === mi + 1);
+    if (!alreadyDone) { hasPending = true; break; }
+    const incomplete = getIncompleteCards(mi);
+    const incompleteCl = getIncompleteClTasks(mi);
+    if (incomplete.length || incompleteCl.length) { hasPending = true; break; }
+  }
+  badge.style.display = hasPending ? 'inline-block' : 'none';
+}
+
+// Open the migration panel UI
+function openMigratePanel() {
+  const panel  = document.getElementById('migratePanel');
+  const realMonth = new Date().getMonth();
+
+  // Build summary of each month with pending tasks
+  let rows = '';
+  for (let mi = 0; mi < 11; mi++) {
+    const incomplete   = getIncompleteCards(mi);
+    const incompleteCl = getIncompleteClTasks(mi);
+    const total = incomplete.length + incompleteCl.length;
+    const past  = isMonthPast(mi);
+    const migrations = (db.migrations || []).filter(m => m.from === mi);
+    const lastMig = migrations.length ? migrations[migrations.length - 1] : null;
+
+    const statusDot = !past
+      ? `<span style="color:var(--text3)">🔒 Not ended yet</span>`
+      : total === 0
+        ? `<span style="color:var(--mint)">✅ All done</span>`
+        : `<span style="color:var(--amber)">⏳ ${total} pending</span>`;
+
+    const migInfo = lastMig
+      ? `<span style="font-size:.68rem;color:var(--text3)">Last migrated: ${new Date(lastMig.at).toLocaleDateString()} · ${lastMig.kanban} cards, ${lastMig.checklist} tasks</span>`
+      : '';
+
+    const migrateBtn = past && total > 0
+      ? `<button class="btn btn-p btn-sm" onclick="doMigrate(${mi})">Move → ${MONTHS[mi+1]}</button>`
+      : past && total === 0
+        ? `<span style="font-size:.72rem;color:var(--text3)">Nothing to move</span>`
+        : '';
+
+    rows += `
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;
+        background:var(--s3);border-radius:10px;border:1px solid var(--border);margin-bottom:8px">
+        <div style="width:38px;height:38px;border-radius:10px;background:var(--s4);
+          display:flex;align-items:center;justify-content:center;
+          font-family:'Playfair Display',serif;font-weight:700;font-size:.88rem;
+          color:${past ? (total > 0 ? 'var(--amber)' : 'var(--mint)') : 'var(--text3)'}">
+          ${MONTHS[mi]}
+        </div>
+        <div style="flex:1">
+          <div style="font-size:.85rem;font-weight:500">${MONTHS[mi]} → ${MONTHS[mi+1]}</div>
+          <div style="display:flex;gap:10px;margin-top:3px;align-items:center;flex-wrap:wrap">
+            ${statusDot}
+            ${total > 0 ? `<span style="font-size:.7rem;color:var(--text3)">📋 ${incomplete.length} cards · ☑ ${incompleteCl.length} tasks</span>` : ''}
+            ${migInfo}
+          </div>
+        </div>
+        ${migrateBtn}
+      </div>`;
+  }
+
+  // Migration history
+  const history = (db.migrations || []).slice().reverse().slice(0, 8);
+  const histHTML = history.length ? history.map(m => `
+    <div style="display:flex;gap:8px;align-items:center;padding:7px 10px;
+      background:var(--s3);border-radius:8px;font-size:.76rem;color:var(--text2)">
+      <span>${m.auto ? '🤖' : '👆'}</span>
+      <span style="flex:1">${MONTHS[m.from]} → ${MONTHS[m.to]}</span>
+      <span style="color:var(--mint)">+${m.kanban} cards</span>
+      <span style="color:var(--violet)">+${m.checklist} tasks</span>
+      <span style="color:var(--text3)">${new Date(m.at).toLocaleDateString()}</span>
+    </div>`).join('') : `<div style="color:var(--text3);font-size:.78rem">No migrations yet.</div>`;
+
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700">🔄 Month Rollover</div>
+        <div style="font-size:.72rem;color:var(--text3);margin-top:3px">
+          Incomplete tasks auto-move to the next month at month end
+        </div>
+      </div>
+      <button class="btn btn-g btn-sm" onclick="document.getElementById('migratePanel').style.display='none'">✕</button>
+    </div>
+
+    <div style="background:var(--indigo-dim);border:1px solid rgba(108,138,255,.2);
+      border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:.8rem;color:var(--text2);line-height:1.6">
+      <strong style="color:var(--indigo)">🤖 Auto-rollover is ON.</strong>
+      Incomplete tasks (To Do, Today's, WIP) from past months are automatically
+      moved to the following month each time you open the app.
+      Completed tasks always stay in the month they were finished.
+      <br><br>
+      <strong style="color:var(--text)">You can also migrate manually</strong> using the buttons below.
+    </div>
+
+    <div style="font-size:.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">
+      Month Status
+    </div>
+    ${rows}
+
+    <div style="font-size:.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;
+      margin:16px 0 8px">Migration History</div>
+    <div style="display:flex;flex-direction:column;gap:5px">${histHTML}</div>
+  `;
+  panel.style.display = 'block';
+
+  // Click outside to close
+  panel.onclick = null;
+  setTimeout(() => {
+    document.addEventListener('click', function closeMig(e) {
+      if (!panel.contains(e.target)) {
+        panel.style.display = 'none';
+        document.removeEventListener('click', closeMig);
+      }
+    });
+  }, 100);
+}
+
+function doMigrate(mi) {
+  const incomplete   = getIncompleteCards(mi);
+  const incompleteCl = getIncompleteClTasks(mi);
+  const total = incomplete.length + incompleteCl.length;
+  if (!total) { toast('Nothing to migrate.'); return; }
+
+  const result = migrateMonth(mi, { auto: false });
+  toast(`✅ Moved ${result.kanban} cards + ${result.checklist} tasks → ${MONTHS[mi+1]}`, 'ok');
+  openMigratePanel(); // refresh panel
+  render();
+}
+
+
+/* ═══════════════════════════════════════════════════
+   THEME ENGINE — dark / light / system
+═══════════════════════════════════════════════════ */
+
+const THEME_KEY = 'fb_theme';
+
+function getSystemTheme() {
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+function applyTheme(mode) {
+  const effective = (mode === 'system') ? getSystemTheme() : mode;
+  const root = document.documentElement;
+  effective === 'light' ? root.classList.add('light') : root.classList.remove('light');
+  const btn = document.getElementById('themeToggle');
+  if (btn) {
+    btn.textContent = effective === 'light' ? '☀️' : '🌙';
+    btn.title = effective === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode';
+  }
+  try { localStorage.setItem(THEME_KEY, mode); } catch(e) {}
+}
+
+function toggleTheme() {
+  const isLight = document.documentElement.classList.contains('light');
+  applyTheme(isLight ? 'dark' : 'light');
+}
+
+function loadTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch(e) {}
+  applyTheme(saved || 'system');
+}
+
+// Auto-follow OS theme changes
+window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch(e) {}
+  if (!saved || saved === 'system') applyTheme('system');
+});
+
+buildMonthGrid();
+renderDash();
+autoMigrateCheck();
+loadTheme();
+</script>
+</body>
+</html>
