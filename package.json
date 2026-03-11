@@ -1,0 +1,71 @@
+{
+  "name": "flowboard-pro",
+  "version": "1.0.0",
+  "description": "FlowBoard Pro — Kanban & Task Management for Windows",
+  "main": "main.js",
+  "author": "FlowBoard",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron main.js",
+    "build:win": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "28.3.3",
+    "electron-builder": "^24.13.3",
+    "xlsx": "^0.18.5"
+  },
+  "build": {
+    "appId": "com.flowboard.pro",
+    "productName": "FlowBoard Pro",
+    "copyright": "Copyright © 2026 FlowBoard",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis",     "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "publisherName": "FlowBoard"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FlowBoard Pro",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    },
+    "portable": {
+      "artifactName": "FlowBoard-Pro-Portable-${version}.exe"
+    },
+    "publish": null
+  }
+}
+```
+
+Click **"Commit new file"** ✅
+
+---
+
+### File 2 of 5 — `.gitignore`
+
+Click **"Add file"** → **"Create new file"**
+
+**Filename:** `.gitignore`
+```
+node_modules/
+dist/
+out/
+*.log
+.DS_Store
+Thumbs.db
