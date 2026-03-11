@@ -2,7 +2,9 @@ name: Build FlowBoard Pro for Windows
 
 on:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 jobs:
@@ -17,7 +19,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -51,31 +53,3 @@ jobs:
           name: FlowBoard-Pro-Portable-${{ github.run_number }}
           path: dist/*Portable*.exe
           retention-days: 30
-```
-
-Click **"Commit new file"** ✅
-
----
-
-## Done! Now watch it build
-
-1. Click **"Actions"** tab in your repo
-2. See **"Build FlowBoard Pro for Windows"** running 🟡
-3. Wait **~8 minutes**
-4. Green ✅ → click the run → scroll to bottom → **Artifacts**
-5. Download **`FlowBoard-Pro-Setup`** → extract → run the `.exe` on Windows 11 ✅
-
----
-
-## Your repo should look like this when done:
-```
-flowboard-pro/
-├── .github/
-│   └── workflows/
-│       └── build.yml
-├── src/
-│   └── index.html
-├── main.js
-├── preload.js
-├── package.json
-└── .gitignore
