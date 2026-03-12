@@ -4,11 +4,7 @@ on:
   push:
     branches:
       - main
-      - master
   workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-windows:
@@ -18,38 +14,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Install dependencies
         run: npm install
-        env:
-          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
-      - name: Bundle XLSX library
-        shell: pwsh
-        run: |
-          if (Test-Path "node_modules/xlsx/dist/xlsx.full.min.js") {
-            Copy-Item "node_modules/xlsx/dist/xlsx.full.min.js" "src/xlsx.full.min.js" -Force
-          }
-
-      - name: Build Windows installers
+      - name: Build Windows App
         run: npm run build:win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Upload Setup installer
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: FlowBoard-Pro-Setup-${{ github.run_number }}
-          path: dist/*Setup*.exe
-
-      - name: Upload Portable exe
-        uses: actions/upload-artifact@v4
-        with:
-          name: FlowBoard-Pro-Portable-${{ github.run_number }}
-          path: dist/*Portable*.exe
+          name: FlowBoard-Pro
+          path: dist
