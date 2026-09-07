@@ -4,7 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>FlowBoard Pro</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Bundled copy first (build.yml copies node_modules/xlsx/dist/xlsx.full.min.js → src/), CDN as fallback -->
+<script src="xlsx.full.min.js"></script>
+<script>if(typeof XLSX==='undefined'){document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>')}</script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
 <style>
 /* ═══════════════════════════════════════════════════
@@ -117,12 +119,13 @@
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
+/* App-shell layout: the viewport never scrolls; each .page is its own
+   scroll container so the topbar and sidebar stay put. */
+html,body{height:100%;overflow:hidden}
 body{
   font-family:'Cabinet Grotesk',sans-serif;
   background:var(--bg);
   color:var(--text);
-  min-height:100vh;
-  overflow-x:hidden;
 }
 
 /* subtle mesh bg */
@@ -139,7 +142,7 @@ body::before{
 /* ═══════════════════════════════════════════════════
    SIDEBAR
 ═══════════════════════════════════════════════════ */
-.app{display:flex;min-height:100vh;position:relative;z-index:1}
+.app{display:flex;height:100vh;position:relative;z-index:1}
 
 .sidebar{
   width:220px;flex-shrink:0;
@@ -208,7 +211,7 @@ body::before{
 /* ═══════════════════════════════════════════════════
    MAIN
 ═══════════════════════════════════════════════════ */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0}
 
 .topbar{
   display:flex;align-items:center;justify-content:space-between;
@@ -233,7 +236,7 @@ body::before{
 /* ═══════════════════════════════════════════════════
    PAGES
 ═══════════════════════════════════════════════════ */
-.page{display:none;flex:1;overflow:auto;padding:24px 28px}
+.page{display:none;flex:1;min-height:0;overflow:auto;padding:24px 28px}
 .page.active{display:flex;flex-direction:column;gap:20px}
 
 /* ═══════════════════════════════════════════════════
@@ -340,6 +343,7 @@ svg.ring{transform:rotate(-90deg)}
   border-radius:var(--r);
   background:var(--s2);
   border:1px solid var(--border);
+  position:sticky;top:-24px;z-index:2;  /* -24px = .page top padding, so it sits flush with the scroll edge */
 }
 .k-col-title{
   display:flex;align-items:center;gap:8px;
@@ -401,6 +405,18 @@ svg.ring{transform:rotate(-90deg)}
 }
 .card:hover .card-del{opacity:1}
 .card-del:hover{background:var(--rose);color:#fff}
+.card-actions{display:flex;gap:2px;flex-shrink:0;opacity:0;transition:opacity .15s}
+.card:hover .card-actions,.card:focus-within .card-actions{opacity:1}
+.card-actions .card-del{opacity:1}
+.card-edit{
+  width:20px;height:20px;border-radius:50%;
+  border:none;background:transparent;color:var(--text3);
+  cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .15s;
+}
+.card-edit:hover{background:var(--indigo);color:#fff}
+.card-title{cursor:text}
+.card-updated{font-size:.62rem;color:var(--text3);margin-top:6px;opacity:.8}
 
 .card-meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
 .badge{font-size:.63rem;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.2px}
@@ -408,6 +424,7 @@ svg.ring{transform:rotate(-90deg)}
 .b-med{background:rgba(255,179,71,.15);color:var(--amber)}
 .b-low{background:rgba(61,219,191,.15);color:var(--mint)}
 .b-date{background:var(--s3);color:var(--text3)}
+.b-date.overdue{background:var(--rose-dim);color:var(--rose)}
 
 .card-desc{
   font-size:.74rem;color:var(--text2);line-height:1.5;
@@ -548,6 +565,16 @@ svg.ring{transform:rotate(-90deg)}
 }
 .cl-task-item:hover .cl-task-del{opacity:1}
 .cl-task-del:hover{background:var(--rose-dim);color:var(--rose)}
+.cl-task-actions{display:flex;gap:2px;flex-shrink:0;opacity:0;transition:opacity .15s}
+.cl-task-item:hover .cl-task-actions{opacity:1}
+.cl-task-actions .cl-task-del{opacity:1}
+.cl-task-edit{
+  padding:4px;border:none;background:transparent;
+  color:var(--text3);cursor:pointer;font-size:.8rem;
+  border-radius:4px;transition:all .15s;flex-shrink:0;
+}
+.cl-task-edit:hover{background:var(--indigo-dim);color:var(--indigo)}
+.cl-task-title{cursor:text}
 
 .add-task-row{
   display:flex;gap:8px;padding:12px 0 0;
@@ -593,6 +620,7 @@ svg.ring{transform:rotate(-90deg)}
   background:var(--s2);border:1px solid var(--border);
   border-radius:20px;padding:28px;
   width:460px;max-width:95vw;
+  max-height:92vh;overflow-y:auto;
   box-shadow:0 28px 80px rgba(0,0,0,.7);
   animation:slideUp .22s ease;
 }
@@ -735,10 +763,37 @@ svg.ring{transform:rotate(-90deg)}
 }
 .exp-preview strong{color:var(--text)}
 
-/* scrollbars */
-*{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
-*::-webkit-scrollbar{width:5px;height:5px}
-*::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+/* scrollbars — wide enough to grab, thumb contrasts with the surface.
+   Chromium ≤120 (Electron 28) uses the ::-webkit rules; newer Chromium
+   uses the standard scrollbar-* properties and ignores ::-webkit. */
+*{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{
+  background:var(--border2);border-radius:6px;
+  border:2px solid transparent;background-clip:padding-box;
+}
+*::-webkit-scrollbar-thumb:hover{background:var(--text3);background-clip:padding-box}
+*::-webkit-scrollbar-corner{background:transparent}
+
+/* ── BACKUP PANEL ── */
+.bk-row{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 14px;border-radius:10px;
+  background:var(--s3);border:1px solid var(--border);margin-bottom:6px;
+}
+.bk-name{font-size:.8rem;font-weight:500;flex:1;word-break:break-all}
+.bk-meta{font-size:.7rem;color:var(--text3);margin-top:2px}
+.bk-path{
+  font-size:.72rem;color:var(--text2);background:var(--s3);
+  border:1px solid var(--border);border-radius:8px;padding:8px 12px;
+  word-break:break-all;line-height:1.5;
+}
+.kbd{
+  display:inline-block;font-size:.66rem;padding:1px 6px;border-radius:5px;
+  border:1px solid var(--border2);background:var(--s3);color:var(--text2);
+  font-family:inherit;margin-left:4px;
+}
 </style>
 </head>
 <body>
@@ -761,6 +816,15 @@ svg.ring{transform:rotate(-90deg)}
   <div class="nav-item" onclick="nav('checklist',this)">
     <span class="nav-icon">☑</span> Task Checklist
     <span class="nav-badge" id="nb-checklist">0</span>
+  </div>
+
+  <div class="nav-section-label" style="margin-top:10px">Tools</div>
+  <div class="nav-item" onclick="openMigratePanel()">
+    <span class="nav-icon">🔄</span> Month Rollover
+    <span class="nav-badge" id="nb-migrate" style="display:none;background:var(--amber)">!</span>
+  </div>
+  <div class="nav-item" onclick="openBackupPanel()">
+    <span class="nav-icon">💾</span> Backups
   </div>
 
   <div class="sidebar-footer">
@@ -926,24 +990,65 @@ svg.ring{transform:rotate(-90deg)}
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-p" onclick="saveCard()">Save Task</button>
+      <button class="btn btn-p" id="cardSaveBtn" onclick="saveCard()">Save Task</button>
       <button class="btn btn-g" onclick="closeModal('cardModal')">Cancel</button>
+      <span style="margin-left:auto;font-size:.68rem;color:var(--text3);align-self:center">Ctrl+Enter to save</span>
     </div>
   </div>
 </div>
 
-<!-- ── ADD CHECKLIST GROUP MODAL ── -->
+<!-- ── ADD / RENAME CHECKLIST GROUP MODAL ── -->
 <div class="overlay" id="clGroupModal">
   <div class="modal">
-    <h2>New Checklist Group</h2>
+    <h2 id="clGroupH">New Checklist Group</h2>
     <div class="fg"><label>Group Name *</label>
-      <input id="cg-name" placeholder="e.g. Work Tasks, Personal Goals…"/></div>
+      <input id="cg-name" placeholder="e.g. Work Tasks, Personal Goals…" onkeydown="if(event.key==='Enter')saveClGroup()"/></div>
     <div class="modal-actions">
-      <button class="btn btn-p" onclick="saveClGroup()">Create</button>
+      <button class="btn btn-p" id="clGroupSaveBtn" onclick="saveClGroup()">Create</button>
       <button class="btn btn-g" onclick="closeModal('clGroupModal')">Cancel</button>
     </div>
   </div>
 </div>
+
+<!-- ── EDIT CHECKLIST TASK MODAL ── -->
+<div class="overlay" id="clTaskModal">
+  <div class="modal">
+    <h2>Edit Task</h2>
+    <div class="fg"><label>Title *</label>
+      <input id="ct-title" placeholder="Task title"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label>Priority</label>
+        <select id="ct-pri">
+          <option value="low">🟢 Low</option>
+          <option value="med">🟡 Medium</option>
+          <option value="high">🔴 High</option>
+        </select></div>
+      <div class="fg"><label>Due Date</label>
+        <input type="date" id="ct-date"/></div>
+    </div>
+    <div class="fg"><label>Sub-tasks</label>
+      <div class="sub-builder">
+        <div class="sub-list" id="ctSubList"></div>
+        <div class="sub-add-row">
+          <input class="sub-inp" id="ctSubInp" placeholder="Add sub-task…"/>
+          <button class="btn btn-p btn-sm" onclick="ctAddSub()">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-p" onclick="saveClTask()">Save Changes</button>
+      <button class="btn btn-g" onclick="closeModal('clTaskModal')">Cancel</button>
+      <span style="margin-left:auto;font-size:.68rem;color:var(--text3);align-self:center">Ctrl+Enter to save</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── MONTH ROLLOVER PANEL (content rendered by openMigratePanel) ── -->
+<div class="exp-panel" id="migratePanel" style="display:none"></div>
+
+<!-- ── BACKUP PANEL ── -->
+<div class="exp-overlay" id="backupOverlay" onclick="closeBackupPanel()"></div>
+<div class="exp-panel" id="backupPanel"></div>
 
 <script>
 /* ═══════════════════════════════════════════════════
@@ -977,14 +1082,46 @@ if(!db){
   });
 }
 // ensure months exist
-MONTHS.forEach((_,i)=>{
-  if(!db.kanban[i]) db.kanban[i]={todo:[],today:[],wip:[],done:[]};
-  if(!db.checklist[i]) db.checklist[i]=[];
-});
+function ensureMonths(){
+  if(!db.kanban) db.kanban={};
+  if(!db.checklist) db.checklist={};
+  MONTHS.forEach((_,i)=>{
+    if(!db.kanban[i]) db.kanban[i]={todo:[],today:[],wip:[],done:[]};
+    COLS.forEach(c=>{ if(!db.kanban[i][c.id]) db.kanban[i][c.id]=[]; });
+    if(!db.checklist[i]) db.checklist[i]=[];
+  });
+}
+ensureMonths();
+
+// Desktop bridge (preload.js). Absent when index.html is opened in a plain browser.
+const HAS_API = typeof window.FlowAPI!=='undefined' && window.FlowAPI && typeof window.FlowAPI.dbWrite==='function';
+
+let editing=null;      // {cid,colId} while editing a kanban card, else null
+let clEditing=null;    // {gid,tid} while editing a checklist task
+let clGroupEditing=null; // gid while renaming a group
+let ctSubs=[];
 
 function save(){
+  db.meta=db.meta||{};
+  db.meta.updatedAt=Date.now();
   localStorage.setItem('fb3_db',JSON.stringify(db));
+  if(HAS_API){ window.FlowAPI.dbWrite(db).catch(e=>console.error('dbWrite failed',e)); }
   updateBadges();
+}
+
+// On startup, reconcile localStorage with the on-disk JSON. Whichever was
+// saved most recently wins; the disk copy is what backups/restores use.
+async function loadFromDisk(){
+  if(!HAS_API) return;
+  try{
+    const fileDb=await window.FlowAPI.dbRead();
+    if(fileDb && fileDb.kanban){
+      const fileTs=(fileDb.meta&&fileDb.meta.updatedAt)||0;
+      const localTs=(db.meta&&db.meta.updatedAt)||0;
+      if(fileTs>=localTs){ db=fileDb; ensureMonths(); }
+    }
+  }catch(e){ console.error('dbRead failed',e); }
+  save(); // makes sure the disk file exists from the first run onward
 }
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1036,6 +1173,7 @@ function updateBadges(){
   const clGroups=db.checklist[curMonth]||[];
   const clTotal=clGroups.reduce((a,g)=>a+g.tasks.length,0);
   document.getElementById('nb-checklist').textContent=clTotal;
+  if(typeof checkMigrateBadge==='function') checkMigrateBadge();
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1161,12 +1299,16 @@ function kCardHTML(c,colId){
        ondragend="kDragEnd()">
     <div class="card-top">
       <div class="card-check ${isDone?'on':''}" onclick="kToggle('${c.id}','${colId}')"></div>
-      <div class="card-title ${isDone?'done':''}">${esc(c.title)}</div>
-      <button class="card-del" onclick="kDel('${c.id}','${colId}')">✕</button>
+      <div class="card-title ${isDone?'done':''}" title="Double-click to edit" ondblclick="openEdit('${c.id}','${colId}')">${esc(c.title)}</div>
+      <div class="card-actions">
+        <button class="card-edit" title="Edit task" onclick="openEdit('${c.id}','${colId}')">✎</button>
+        <button class="card-del" title="Delete task" onclick="kDel('${c.id}','${colId}')">✕</button>
+      </div>
     </div>
     <div class="card-meta">
       <span class="badge b-${c.priority}">${priLabel(c.priority)}</span>
-      ${c.dueDate?`<span class="badge b-date">📅 ${fmt(c.dueDate)}</span>`:''}
+      ${c.dueDate?`<span class="badge b-date ${isOverdue(c.dueDate,isDone)?'overdue':''}">${isOverdue(c.dueDate,isDone)?'⚠':'📅'} ${fmt(c.dueDate)}</span>`:''}
+      ${c.migratedFrom?`<span class="badge b-date" title="Rolled over from ${c.migratedFrom}">↪ ${c.migratedFrom}</span>`:''}
     </div>
     ${c.desc?`<div class="card-desc">${esc(c.desc)}</div>`:''}
     ${subs.length?`
@@ -1274,7 +1416,8 @@ function clGroupHTML(g){
         <div class="cl-group-pbar"><div class="cl-group-pfill" style="width:${pct}%;background:${pfColor}"></div></div>
         <span>${pct}%</span>
       </div>
-      <button class="btn btn-g btn-sm" style="margin-right:4px" onclick="event.stopPropagation();delClGroup('${g.id}')">🗑</button>
+      <button class="btn btn-g btn-sm" title="Rename group" onclick="event.stopPropagation();openRenameGroup('${g.id}')">✎</button>
+      <button class="btn btn-g btn-sm" style="margin-right:4px" title="Delete group" onclick="event.stopPropagation();delClGroup('${g.id}')">🗑</button>
       <span class="cl-group-arrow">▾</span>
     </div>
     <div class="cl-group-body">
@@ -1297,11 +1440,12 @@ function clTaskHTML(t,gid){
   <div class="cl-task-item" id="clt-${t.id}">
     <div class="cl-big-cb ${t.done?'on':''}" onclick="clToggleTask('${gid}','${t.id}')"></div>
     <div class="cl-task-body">
-      <div class="cl-task-title ${t.done?'done':''}">${esc(t.title)}</div>
+      <div class="cl-task-title ${t.done?'done':''}" title="Double-click to edit" ondblclick="openClTaskEdit('${gid}','${t.id}')">${esc(t.title)}</div>
       <div class="cl-task-meta">
         <span class="badge b-${t.priority}">${priLabel(t.priority)}</span>
-        ${t.dueDate?`<span class="badge b-date">📅 ${fmt(t.dueDate)}</span>`:''}
+        ${t.dueDate?`<span class="badge b-date ${isOverdue(t.dueDate,t.done)?'overdue':''}">${isOverdue(t.dueDate,t.done)?'⚠':'📅'} ${fmt(t.dueDate)}</span>`:''}
         ${subs.length?`<span class="badge" style="background:var(--violet-dim);color:var(--violet)">${subDone}/${subs.length} subs</span>`:''}
+        ${t.migratedFrom?`<span class="badge b-date" title="Rolled over from ${t.migratedFrom}">↪ ${t.migratedFrom}</span>`:''}
       </div>
       ${subs.length?`
         <div class="cl-task-sub">
@@ -1316,7 +1460,10 @@ function clTaskHTML(t,gid){
             </div>`).join('')}
         </div>`:''}
     </div>
-    <button class="cl-task-del" onclick="clDelTask('${gid}','${t.id}')">✕</button>
+    <div class="cl-task-actions">
+      <button class="cl-task-edit" title="Edit task" onclick="openClTaskEdit('${gid}','${t.id}')">✎</button>
+      <button class="cl-task-del" title="Delete task" onclick="clDelTask('${gid}','${t.id}')">✕</button>
+    </div>
   </div>`;
 }
 
@@ -1375,10 +1522,73 @@ function delClGroup(gid){
   save(); renderChecklist();
 }
 
+/* ── edit checklist task (title, priority, due date, sub-tasks) ── */
+function openClTaskEdit(gid,tid){
+  const g=db.checklist[curMonth].find(x=>x.id===gid);
+  const t=g&&g.tasks.find(x=>x.id===tid);
+  if(!t)return;
+  clEditing={gid,tid};
+  document.getElementById('ct-title').value=t.title||'';
+  document.getElementById('ct-pri').value=t.priority||'med';
+  document.getElementById('ct-date').value=t.dueDate||'';
+  ctSubs=(t.subs||[]).map(s=>({...s}));
+  renderCtSubList();
+  document.getElementById('clTaskModal').classList.add('open');
+  setTimeout(()=>document.getElementById('ct-title').focus(),80);
+}
+function ctAddSub(){
+  const inp=document.getElementById('ctSubInp');
+  const txt=inp.value.trim();
+  if(!txt)return;
+  ctSubs.push({id:uid(),text:txt,done:false});
+  inp.value='';
+  renderCtSubList();
+}
+document.getElementById('ctSubInp').addEventListener('keydown',e=>{if(e.key==='Enter')ctAddSub()});
+function renderCtSubList(){
+  document.getElementById('ctSubList').innerHTML=ctSubs.map(s=>`
+    <div class="sub-row">
+      <span style="${s.done?'text-decoration:line-through;opacity:.6':''}">${esc(s.text)}</span>
+      <button onclick="ctRemoveSub('${s.id}')">✕</button>
+    </div>`).join('');
+}
+function ctRemoveSub(id){ctSubs=ctSubs.filter(s=>s.id!==id);renderCtSubList()}
+function saveClTask(){
+  if(!clEditing)return;
+  const title=document.getElementById('ct-title').value.trim();
+  if(!title){document.getElementById('ct-title').focus();return}
+  const g=db.checklist[curMonth].find(x=>x.id===clEditing.gid);
+  const t=g&&g.tasks.find(x=>x.id===clEditing.tid);
+  if(!t){closeModal('clTaskModal');return}
+  t.title=title;
+  t.priority=document.getElementById('ct-pri').value;
+  t.dueDate=document.getElementById('ct-date').value;
+  t.subs=ctSubs.map(s=>({...s}));
+  t.updatedAt=new Date().toISOString();
+  clEditing=null;
+  save();
+  closeModal('clTaskModal');
+  renderChecklist();
+  toast('Task updated','ok');
+}
+
+/* ── rename group ── */
+function openRenameGroup(gid){
+  const g=db.checklist[curMonth].find(x=>x.id===gid);
+  if(!g)return;
+  clGroupEditing=gid;
+  document.getElementById('cg-name').value=g.name;
+  document.getElementById('clGroupH').textContent='Rename Group';
+  document.getElementById('clGroupSaveBtn').textContent='Save';
+  document.getElementById('clGroupModal').classList.add('open');
+  setTimeout(()=>{const i=document.getElementById('cg-name');i.focus();i.select()},80);
+}
+
 /* ═══════════════════════════════════════════════════
    ADD CARD MODAL
 ═══════════════════════════════════════════════════ */
 function openAdd(colHint){
+  editing=null;
   addColHint=colHint||'todo';
   document.getElementById('f-title').value='';
   document.getElementById('f-desc').value='';
@@ -1388,6 +1598,25 @@ function openAdd(colHint){
   tempSubs=[];
   renderSubList();
   document.getElementById('modalH').textContent='New Task';
+  document.getElementById('cardSaveBtn').textContent='Save Task';
+  document.getElementById('cardModal').classList.add('open');
+  setTimeout(()=>document.getElementById('f-title').focus(),80);
+}
+
+/* ── edit existing kanban card ── */
+function openEdit(cid,colId){
+  const card=(db.kanban[curMonth][colId]||[]).find(c=>c.id===cid);
+  if(!card)return;
+  editing={cid,colId};
+  document.getElementById('f-title').value=card.title||'';
+  document.getElementById('f-desc').value=card.desc||'';
+  document.getElementById('f-col').value=colId;
+  document.getElementById('f-pri').value=card.priority||'med';
+  document.getElementById('f-date').value=card.dueDate||'';
+  tempSubs=(card.subs||[]).map(s=>({...s}));   // keep ids + done state
+  renderSubList();
+  document.getElementById('modalH').textContent='Edit Task';
+  document.getElementById('cardSaveBtn').textContent='Save Changes';
   document.getElementById('cardModal').classList.add('open');
   setTimeout(()=>document.getElementById('f-title').focus(),80);
 }
@@ -1406,7 +1635,7 @@ document.getElementById('subInp').addEventListener('keydown',e=>{if(e.key==='Ent
 function renderSubList(){
   document.getElementById('subList').innerHTML=tempSubs.map(s=>`
     <div class="sub-row">
-      <span>${esc(s.text)}</span>
+      <span style="${s.done?'text-decoration:line-through;opacity:.6':''}">${esc(s.text)}</span>
       <button onclick="removeSub('${s.id}')">✕</button>
     </div>`).join('');
 }
@@ -1417,6 +1646,36 @@ function saveCard(){
   const title=document.getElementById('f-title').value.trim();
   if(!title){document.getElementById('f-title').focus();return}
   const colId=document.getElementById('f-col').value;
+
+  // ── Edit mode ──
+  if(editing){
+    const srcArr=db.kanban[curMonth][editing.colId]||[];
+    const idx=srcArr.findIndex(c=>c.id===editing.cid);
+    if(idx<0){ editing=null; closeModal('cardModal'); toast('Task no longer exists'); return; }
+    const card=srcArr[idx];
+    card.title=title;
+    card.desc=document.getElementById('f-desc').value.trim();
+    card.priority=document.getElementById('f-pri').value;
+    card.dueDate=document.getElementById('f-date').value;
+    card.subs=tempSubs.map(s=>({...s}));
+    card.updatedAt=new Date().toISOString();
+    if(colId!==editing.colId){
+      srcArr.splice(idx,1);
+      card.done=(colId==='done');
+      db.kanban[curMonth][colId].unshift(card);
+    } else if(colId==='done'){
+      card.done=true;
+    }
+    editing=null;
+    save();
+    closeModal('cardModal');
+    if(curPage==='kanban') renderKanban();
+    else if(curPage==='dashboard') renderDash();
+    toast('Task updated','ok');
+    return;
+  }
+
+  // ── Create mode ──
   const card={
     id:uid(),
     title,
@@ -1440,7 +1699,10 @@ function saveCard(){
    ADD CHECKLIST GROUP MODAL
 ═══════════════════════════════════════════════════ */
 function openAddCheckGroup(){
+  clGroupEditing=null;
   document.getElementById('cg-name').value='';
+  document.getElementById('clGroupH').textContent='New Checklist Group';
+  document.getElementById('clGroupSaveBtn').textContent='Create';
   document.getElementById('clGroupModal').classList.add('open');
   setTimeout(()=>document.getElementById('cg-name').focus(),80);
 }
@@ -1448,6 +1710,16 @@ function openAddCheckGroup(){
 function saveClGroup(){
   const name=document.getElementById('cg-name').value.trim();
   if(!name){document.getElementById('cg-name').focus();return}
+  if(clGroupEditing){
+    const g=db.checklist[curMonth].find(x=>x.id===clGroupEditing);
+    if(g) g.name=name;
+    clGroupEditing=null;
+    save();
+    closeModal('clGroupModal');
+    renderChecklist();
+    toast('Group renamed','ok');
+    return;
+  }
   db.checklist[curMonth].push({id:uid(),name,tasks:[]});
   save();
   closeModal('clGroupModal');
@@ -1460,7 +1732,29 @@ function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.overlay').forEach(o=>{
   o.addEventListener('click',e=>{if(e.target===e.currentTarget)o.classList.remove('open')});
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'))});
+
+/* ── keyboard shortcuts ──
+   Esc          close any open modal / panel
+   Ctrl+N       new task
+   Ctrl+Enter   save the open modal                                        */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));
+    closeExportPanel(); closeBackupPanel();
+    const mp=document.getElementById('migratePanel'); if(mp) mp.style.display='none';
+    return;
+  }
+  const mod=e.ctrlKey||e.metaKey;
+  if(mod&&e.key==='Enter'){
+    if(document.getElementById('cardModal').classList.contains('open'))   { e.preventDefault(); saveCard(); }
+    else if(document.getElementById('clTaskModal').classList.contains('open')) { e.preventDefault(); saveClTask(); }
+    else if(document.getElementById('clGroupModal').classList.contains('open')){ e.preventDefault(); saveClGroup(); }
+    return;
+  }
+  if(mod&&(e.key==='n'||e.key==='N')&&!document.querySelector('.overlay.open')){
+    e.preventDefault(); openAdd();
+  }
+});
 
 /* ═══════════════════════════════════════════════════
    EXCEL EXPORT
@@ -1605,6 +1899,10 @@ function runExport() {
   const inclDone      = isOn('tog-done');
 
   if (!months.length) { toast('⚠ Select at least one month'); return; }
+  if (typeof XLSX === 'undefined') {
+    toast('⚠ Excel library not loaded — bundled xlsx.full.min.js is missing and no internet connection');
+    return;
+  }
 
   // Use ExcelJS-style via SheetJS with rich formatting
   const wb = XLSX.utils.book_new();
@@ -1885,6 +2183,25 @@ function runExport() {
     ? MONTHS[[...expSelMonths][0]]
     : `${expSelMonths.size}months`;
   const fname = `FlowBoard_${monthTag}_${YEAR}.xlsx`;
+  writeWorkbook(wb, fname);
+}
+
+// In the desktop app: native "Save as" dialog (main.js export-path/write-file
+// handlers), then reveal the file in Explorer. In a browser: plain download.
+async function writeWorkbook(wb, fname) {
+  if (HAS_API) {
+    try {
+      const savePath = await window.FlowAPI.exportPath(fname);
+      if (!savePath) { toast('Export cancelled'); return; }
+      const b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+      await window.FlowAPI.writeFile(savePath, b64);
+      closeExportPanel();
+      toast(`📊 Exported: ${savePath.split(/[\\/]/).pop()}`, 'ok');
+      return;
+    } catch (e) {
+      console.error('Native export failed, falling back to download', e);
+    }
+  }
   XLSX.writeFile(wb, fname);
   closeExportPanel();
   toast(`📊 Exported: ${fname}`, 'ok');
@@ -1904,6 +2221,12 @@ function fmt(d){
   return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function isOverdue(d,done){
+  if(!d||done)return false;
+  const due=new Date(d+'T00:00'); if(isNaN(due))return false;
+  const today=new Date(); today.setHours(0,0,0,0);
+  return due<today;
+}
 
 let _toastT;
 function toast(msg,type=''){
@@ -2080,12 +2403,10 @@ function checkMigrateBadge() {
   const badge = document.getElementById('nb-migrate');
   if (!badge) return;
 
-  // Badge if current real month has past months with unmigrated tasks
+  // Badge only when a past month still holds incomplete tasks
   let hasPending = false;
   for (let mi = 0; mi < realMonth; mi++) {
     if (!isMonthPast(mi)) continue;
-    const alreadyDone = (db.migrations || []).some(m => m.from === mi && m.to === mi + 1);
-    if (!alreadyDone) { hasPending = true; break; }
     const incomplete = getIncompleteCards(mi);
     const incompleteCl = getIncompleteClTasks(mi);
     if (incomplete.length || incompleteCl.length) { hasPending = true; break; }
@@ -2254,10 +2575,103 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
   if (!saved || saved === 'system') applyTheme('system');
 });
 
-buildMonthGrid();
-renderDash();
-autoMigrateCheck();
-loadTheme();
+/* ═══════════════════════════════════════════════════
+   BACKUP & RESTORE PANEL — uses main.js IPC handlers
+═══════════════════════════════════════════════════ */
+function fmtBytes(n){ return n<1024?`${n} B`:n<1048576?`${(n/1024).toFixed(1)} KB`:`${(n/1048576).toFixed(2)} MB`; }
+
+async function openBackupPanel(){
+  const panel=document.getElementById('backupPanel');
+  document.getElementById('backupOverlay').classList.add('open');
+  panel.classList.add('open');
+
+  const head=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700">💾 Backups &amp; Data</div>
+        <div style="font-size:.72rem;color:var(--text3);margin-top:3px">Automatic every 30 min and on quit · last 30 kept</div>
+      </div>
+      <button class="btn btn-g btn-sm" onclick="closeBackupPanel()">✕</button>
+    </div>`;
+
+  if(!HAS_API){
+    panel.innerHTML=head+`
+      <div class="exp-preview">Backups run inside the FlowBoard Pro desktop app.
+      In a plain browser your data is kept in this browser's local storage only.</div>`;
+    return;
+  }
+
+  panel.innerHTML=head+`<div style="color:var(--text3);font-size:.8rem">Loading…</div>`;
+  let info=null, list=[];
+  try{ info=await window.FlowAPI.appInfo(); }catch(e){}
+  try{ list=await window.FlowAPI.backupList(); }catch(e){}
+
+  const rows=list.length ? list.map(b=>`
+    <div class="bk-row">
+      <span style="font-size:1rem">🗂</span>
+      <div style="flex:1;min-width:0">
+        <div class="bk-name">${esc(b.name)}</div>
+        <div class="bk-meta">${new Date(b.mtime).toLocaleString()} · ${fmtBytes(b.size)}</div>
+      </div>
+      <button class="btn btn-g btn-sm" onclick="restoreBackup('${esc(b.name)}')">Restore</button>
+    </div>`).join('')
+    : `<div style="color:var(--text3);font-size:.78rem;padding:6px 0">No backups yet — click <strong>Backup now</strong> to create the first one.</div>`;
+
+  panel.innerHTML=head+`
+    <div class="exp-section" style="margin-top:0">
+      <div class="exp-section-title">Data file</div>
+      <div class="bk-path">${esc(info?info.dbFile:'')}</div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-p btn-sm" onclick="backupNowUI()">Backup now</button>
+        <button class="btn btn-g btn-sm" onclick="window.FlowAPI.openPath('${(info?info.backupDir:'').replace(/\\/g,'\\\\')}')">Open backup folder</button>
+        <button class="btn btn-g btn-sm" onclick="window.FlowAPI.openPath('${(info?info.userData:'').replace(/\\/g,'\\\\')}')">Open data folder</button>
+      </div>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Available backups (${list.length})</div>
+      ${rows}
+    </div>
+    <div style="font-size:.7rem;color:var(--text3);margin-top:14px">
+      App v${esc(info?info.version:'')} · Electron ${esc(info?info.electron:'')}
+    </div>`;
+}
+function closeBackupPanel(){
+  document.getElementById('backupPanel').classList.remove('open');
+  document.getElementById('backupOverlay').classList.remove('open');
+}
+async function backupNowUI(){
+  try{
+    save(); // flush current state to disk before copying it
+    await window.FlowAPI.backupNow();
+    openBackupPanel();
+  }catch(e){ toast('⚠ Backup failed: '+(e.message||e)); }
+}
+async function restoreBackup(name){
+  try{
+    const ok=await window.FlowAPI.backupRestore(name); // main.js shows the confirm dialog
+    if(!ok)return;
+    const fileDb=await window.FlowAPI.dbRead();
+    if(!fileDb||!fileDb.kanban){ toast('⚠ Backup file could not be read'); return; }
+    db=fileDb; ensureMonths();
+    save();                 // stamps updatedAt so the restored copy wins on next launch
+    closeBackupPanel();
+    buildMonthGrid(); render();
+    toast('✅ Restored from '+name,'ok');
+  }catch(e){ toast('⚠ Restore failed: '+(e.message||e)); }
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+(async function init(){
+  loadTheme();
+  buildMonthGrid();
+  renderDash();
+  await loadFromDisk();   // may replace db with the newer on-disk copy
+  buildMonthGrid();
+  render();
+  autoMigrateCheck();
+})();
 </script>
 </body>
 </html>
