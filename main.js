@@ -106,7 +106,12 @@ function scheduleBackup() {
 }
 
 ipcMain.handle('db-read',  ()         => fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) : null);
-ipcMain.handle('db-write', (_, data)  => { fs.writeFileSync(DB_FILE, JSON.stringify(data), 'utf8'); return true; });
+ipcMain.handle('db-write', (_, data)  => {
+  const tmp = DB_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(data), 'utf8');
+  fs.renameSync(tmp, DB_FILE);          // atomic on the same volume
+  return true;
+});
 ipcMain.handle('backup-now', ()       => backupNow(false));
 ipcMain.handle('backup-list', ()      => fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json'))
   .map(f => { const s = fs.statSync(path.join(BACKUP_DIR, f)); return { name: f, size: s.size, mtime: s.mtime }; })
